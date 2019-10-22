@@ -136,7 +136,6 @@
  *          ((int)(((a) - (b)) & 0xFFFFFFFF) > 0)
  *        The comment for this macro is interesting:
  *          "copycode: This define is taken from BIND9"
- *        !!! This isn't at all compliant with RFC-1982 !!!
  * 
  * Logic:
  *   IF have_serial AND outserial > arg_inbound_serial:         !!!
