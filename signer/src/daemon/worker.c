@@ -29,6 +29,12 @@
  *
  */
 
+#ifndef TESTING_WITH_MOCKS
+#  define mockable_static static
+#else
+#  define mockable_static
+#endif
+
 #include "daemon/engine.h"
 #include "daemon/worker.h"
 #include "shared/allocator.h"
@@ -287,7 +293,7 @@ worker_check_jobs(worker_type* worker, task_type* task)
  * Perform task.
  *
  */
-static void
+mockable_static void
 worker_perform_task(worker_type* worker)
 {
     engine_type* engine = NULL;

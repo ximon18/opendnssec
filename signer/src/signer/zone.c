@@ -482,7 +482,6 @@ zone_update_serial(zone_type* zone)
     ods_log_assert(zone->name);
     ods_log_assert(zone->db);
     ods_log_assert(zone->signconf);
-
     if (zone->db->serial_updated) {
         /* already done, unmark and return ok */
         ods_log_debug("[%s] zone %s soa serial already up to date",

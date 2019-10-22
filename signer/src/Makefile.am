@@ -76,8 +76,7 @@ ods_signerd_LDADD=		$(LIBHSM)
 ods_signerd_LDADD+=		$(LIBCOMPAT)
 ods_signerd_LDADD+=		@LDNS_LIBS@ @XML2_LIBS@ @PTHREAD_LIBS@ @RT_LIBS@ @SSL_LIBS@ @C_LIBS@
 
-ods_signer_SOURCES=		ods-signer.c \
-				adapter/adapi.c adapter/adapi.h \
+SIGNER_NON_MAIN_SOURCES = adapter/adapi.c adapter/adapi.h \
 				adapter/adapter.c adapter/adapter.h \
 				adapter/addns.c adapter/addns.h \
 				adapter/adfile.c adapter/adfile.h \
@@ -132,6 +131,7 @@ ods_signer_SOURCES=		ods-signer.c \
 				wire/tsig-openssl.c wire/tsig-openssl.h \
 				wire/xfrd.c wire/xfrd.h
 
+ods_signer_SOURCES=		ods-signer.c $(SIGNER_NON_MAIN_SOURCES)
 ods_signer_LDADD=		$(LIBHSM)
 ods_signer_LDADD+=		@LDNS_LIBS@ @XML2_LIBS@ @RT_LIBS@ @SSL_LIBS@ 
 ods_signer_LDADD+=		$(LIBCOMPAT)
@@ -195,3 +195,12 @@ ods_getconf_SOURCES=		ods-getconf.c \
 ods_getconf_LDADD=		$(LIBHSM)
 ods_getconf_LDADD+=		@SSL_LIBS@ @LDNS_LIBS@ @XML2_LIBS@ @RT_LIBS@
 ods_getconf_LDADD+=		$(LIBCOMPAT)
+
+LIBCMOCKA = -lcmocka
+check_PROGRAMS = test/namedb_test
+TESTS = test/namedb_test
+test_namedb_test_SOURCES=   signer/test/cmocka/namedb_test.c $(SIGNER_NON_MAIN_SOURCES)
+test_namedb_test_CPPFLAGS=  $(AM_CPPFLAGS)  
+test_namedb_test_CPPFLAGS+= -DTESTING_WITH_MOCKS
+test_namedb_test_LDADD=		$(ods_signer_LDADD) $(LIBCMOCKA)
+test_namedb_test_LDFLAGS=	-Wl,--wrap=ods_fatal_exit,--wrap=ods_log_verbose,--wrap=ods_log_debug,--wrap=ods_log_warning,--wrap=ods_log_error,--wrap=time_now

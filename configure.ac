@@ -5,7 +5,7 @@ AC_INIT([opendnssec], OPENDNSSEC_VERSION, [http://bugs.opendnssec.org/])
 
 AM_INIT_AUTOMAKE
 AC_CONFIG_MACRO_DIR([m4])
-AM_INIT_AUTOMAKE(foreign)
+AM_INIT_AUTOMAKE([foreign subdir-objects])
 ACX_PREFIXHACK
 
 OPENDNSSEC_COMMON

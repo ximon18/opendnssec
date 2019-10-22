@@ -266,6 +266,7 @@ ods_log_deeebug(const char *format, ...)
  * Log debug.
  *
  */
+/*__attribute__((weak))*/
 void
 ods_log_debug(const char *format, ...)
 {
