@@ -25,7 +25,18 @@
  */
 
 /*
- * SOA serial management testing.
+ * SOA serial management testing using CMocka.
+ * 
+ * To run: make check
+ * Test log output is written to signer/src/test-suite.log by default.
+ * 
+ * Assumes that src/signer/Makefile.am is configured to build a separate
+ * check binary using linker arguments -Wl,--wrap=ods_log_debug,--wrap=... for
+ * each of the __wrap_ functions defined below.
+ */
+
+/* 
+ * Notes to self about OpenDNSSEC SOA serial management.
  * 
  * NOTE: Any comparison of serials using < > or max() or arithmetic using '+'
  * would seem to ignore the possibility of wrap around which does not seem
