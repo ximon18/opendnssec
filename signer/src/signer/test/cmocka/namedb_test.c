@@ -607,8 +607,7 @@ static int worker_teardown(worker_state_type** state)
     return 0;
 }
 
-// WORK IN PROGRESS
-static void test_soa_serial_unixtime_lt_now_e2e(worker_type** state)
+static void test_worker_common(worker_state_type** state)
 {
     worker_state_type *worker_state = *state;
     worker_type *worker = worker_state->worker;
@@ -635,13 +634,25 @@ static void test_soa_serial_unixtime_lt_now_e2e(worker_type** state)
     // function as non-static when in test mode so that we can access it from
     // here. See: https://stackoverflow.com/a/49901081
     worker->task->what = TASK_SIGN;
-    will_return_always(__wrap_time_now, 1);
     will_return_always(__wrap_hsm_get_dnskey, key_rr);
     will_return_always(keylookup, worker_state->hsm_key);
     will_return_always(__wrap_hsm_create_context, worker_state->hsm_ctx);
     will_return_always(worker_queue_rrset, worker_state->hsm_ctx);
     expect_function_call(mock_C_Sign);
-    expect_function_call(__wrap_adapter_write);
+    // expect_function_call(__wrap_adapter_write);
+}
+
+// WORK IN PROGRESS
+static void test_soa_serial_unixtime_gt_now_e2e(worker_state_type** state)
+{
+    test_worker_common(state);
+
+    worker_type *worker = (*state)->worker;
+    zone_type *zone = worker->task->zone;
+    zone->db->inbserial = 2;
+
+    will_return_always(__wrap_time_now, zone->db->inbserial - 1);
+    expect_ods_log_warning("unable to use unixtime as serial: %u does not increase %u.");
     worker_perform_task(worker);
 }
 
@@ -704,7 +715,7 @@ int main(void)
         cmocka_unit_test(test_soa_serial_unixtime_lt_now),
         cmocka_unit_test(test_serial_gt),
         cmocka_unit_test(test_serial_gt_incomparable),
-        cmocka_unit_test_setup_teardown(test_soa_serial_unixtime_lt_now_e2e, worker_setup, worker_teardown),
+        cmocka_unit_test_setup_teardown(test_soa_serial_unixtime_gt_now_e2e, worker_setup, worker_teardown),
     };
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
