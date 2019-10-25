@@ -725,8 +725,9 @@ static void e2e_test_soa_serial_unable_to_force_serial(e2e_test_state_type** sta
     worker_perform_task((*state)->worker);
 }
 
-#define IS_CMDLINEFLAG_SET(needle) \
-    (get_cmdlinearg(argc, argv, needle, false, NULL) ? true : false)
+#define IS_CMDLINEFLAG_SET(long_needle, short_needle) \
+    (get_cmdlinearg(argc, argv, long_needle, false, NULL) ? true : false) || \
+    (get_cmdlinearg(argc, argv, short_needle, false, NULL) ? true : false)
 
 #define GET_CMDLINEARG_VALUE(needle) \
     get_cmdlinearg(argc, argv, needle, true, NULL)
@@ -787,7 +788,7 @@ static void set_filtered_tests(char *filter)
 }
 
 
-static const struct CMUnitTest tests[] = {
+static struct CMUnitTest tests[] = {
     cmocka_unit_test(test_soa_serial_counter),
     cmocka_unit_test(test_soa_serial_keep_okay),
     cmocka_unit_test(test_soa_serial_keep_unusable),
@@ -799,24 +800,27 @@ static const struct CMUnitTest tests[] = {
     cmocka_unit_test_setup_teardown(e2e_test_soa_serial_unixtime_gt_now, e2e_setup, e2e_teardown),
     cmocka_unit_test_setup_teardown(e2e_test_soa_serial_force_serial, e2e_setup, e2e_teardown),
     cmocka_unit_test_setup_teardown(e2e_test_soa_serial_unable_to_force_serial, e2e_setup, e2e_teardown),
-};    
+};
+static const num_tests = (sizeof(tests)/sizeof(struct CMUnitTest));
 
 int main(int argc, char *argv[])
 {
-    if (IS_CMDLINEFLAG_SET("--help") || IS_CMDLINEFLAG_SET("-h")) {
+    if (IS_CMDLINEFLAG_SET("--help", "-h")) {
         fprintf(stderr, "Usage: %s [--help|--list]\n", argv[0]);
         fprintf(stderr, "       %s [--log=info|error|etc] [--test=(-)some*n?me]\n", argv[0]);
         return 0;
     }
-    if (IS_CMDLINEFLAG_SET("--list") || IS_CMDLINEFLAG_SET("-l")) {
+
+    set_logging_level(GET_CMDLINEARG_VALUE("--log"));
+    set_filtered_tests(GET_CMDLINEARG_VALUE_OR_DEFAULT("--test", "*"));
+
+    if (IS_CMDLINEFLAG_SET("--list", "-l")) {
         fprintf(stderr, "Listing all test names:\n");
-        for (int i = 0; i < (sizeof(tests)/sizeof(struct CMUnitTest)); i++) {
+        for (int i = 0; i < num_tests; i++) {
             fprintf(stderr, "  - %s\n", tests[i].name);
         }
         return 0;
     }
-    set_logging_level(GET_CMDLINEARG_VALUE("--log"));
-    set_filtered_tests(GET_CMDLINEARG_VALUE_OR_DEFAULT("--test", "*"));
 
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
