@@ -65,7 +65,9 @@ const uint64_t TWO_POW_32 = 4294967296;         // 2^(SERIAL_BITS)
 const uint32_t TWO_POW_31 = 2147483648;         // 2^(SERIAL_BITS - 1)
 const uint32_t MAX_SERIAL_ADD = TWO_POW_31 - 1; // 2^(SERIAL_BITS - 1) - 1
 const uint32_t MOCK_UNIXTIME_NOW = 1234;
-#define MOCK_HSM_MODULE_NAME "MOCK_MODULE"
+const char *DEFAULT_LOG_LEVEL = "warning";
+const char *LOG_LEVELS_LOW_TO_HIGH = "mock,deeebug,debug,verbose,info,warning,error,crit,fatal";
+const char *MOCK_HSM_MODULE_NAME = "MOCK_MODULE";
 
 
 // useful macros
@@ -81,9 +83,9 @@ const uint32_t MOCK_UNIXTIME_NOW = 1234;
 // ----------------------------------------------------------------------------
 
 // Mock logging
-char *log_filter = "warning|error|crit";
+char *log_filter = NULL;
 #define LOG_LEVEL_ENABLED(level) \
-    0 == strcmp(log_filter, "all") || strstr(log_filter, level)
+    strstr(log_filter, level)
 
 #define TEST_LOG_NOCHECK(level) \
     fprintf(stderr, "test: log[" level "] "
@@ -117,14 +119,14 @@ void __wrap_print_message(const char* const format, ...) {
         WRAP_VARARGS_LOG("mock", format);
     }
 }
-void __wrap_ods_fatal_exit(const char *format, ...)  { WRAP_VARARGS_LOGN("fatal", format); }
-void __wrap_ods_log_debug(const char *format, ...)   { WRAP_VARARGS_LOGN("debug", format); }
 void __wrap_ods_log_deeebug(const char *format, ...) { WRAP_VARARGS_LOGN("deeebug", format); }
+void __wrap_ods_log_debug(const char *format, ...)   { WRAP_VARARGS_LOGN("debug", format); }
 void __wrap_ods_log_verbose(const char *format, ...) { WRAP_VARARGS_LOGN("verbose", format); }
 void __wrap_ods_log_info(const char *format, ...)    { WRAP_VARARGS_LOGN("info", format); }
 void __wrap_ods_log_warning(const char *format, ...) { WRAP_UNEXPECTED_ODS_LOG("warning", format); }
 void __wrap_ods_log_error(const char *format, ...)   { WRAP_UNEXPECTED_ODS_LOG("error", format); }
 void __wrap_ods_log_crit(const char *format, ...)    { WRAP_UNEXPECTED_ODS_LOG("crit", format); }
+void __wrap_ods_fatal_exit(const char *format, ...)  { WRAP_UNEXPECTED_ODS_LOG("fatal", format); }
 
 #define MOCK_ANNOUNCE() \
     TEST_LOG("mock") "mock: %s()\n", __func__);
@@ -718,6 +720,7 @@ static void e2e_test_soa_serial_force_serial(e2e_test_state_type** state)
     will_return_always(__wrap_time_now, zone->db->inbserial + 1);
 
     // When signing expect: no errors or warnings
+    expect_ods_log_warning("something to make the test fail");
 
     // Go!
     worker_perform_task((*state)->worker);
@@ -741,25 +744,98 @@ static void e2e_test_soa_serial_unable_to_force_serial(e2e_test_state_type** sta
     worker_perform_task((*state)->worker);
 }
 
-int main(void)
-{
-    const char* log_level_env_var = getenv("TESTING_LOG_LEVEL");
-    if (log_level_env_var) {
-        log_filter = log_level_env_var;
-    }
+#define IS_CMDLINEFLAG_SET(needle) \
+    (get_cmdlinearg(argc, argv, needle, false, NULL) ? true : false)
 
-    const struct CMUnitTest tests[] = {
-        cmocka_unit_test(test_soa_serial_counter),
-        cmocka_unit_test(test_soa_serial_keep_okay),
-        cmocka_unit_test(test_soa_serial_keep_unusable),
-        cmocka_unit_test(test_soa_serial_unixtime_gt_now),
-        cmocka_unit_test(test_soa_serial_unixtime_eq_now),
-        cmocka_unit_test(test_soa_serial_unixtime_lt_now),
-        cmocka_unit_test(test_serial_gt),
-        cmocka_unit_test(test_serial_gt_incomparable),
-        cmocka_unit_test_setup_teardown(e2e_test_soa_serial_unixtime_gt_now, e2e_setup, e2e_teardown),
-        cmocka_unit_test_setup_teardown(e2e_test_soa_serial_force_serial, e2e_setup, e2e_teardown),
-        cmocka_unit_test_setup_teardown(e2e_test_soa_serial_unable_to_force_serial, e2e_setup, e2e_teardown),
-    };
+#define GET_CMDLINEARG_VALUE(needle) \
+    get_cmdlinearg(argc, argv, needle, true, NULL)
+
+#define GET_CMDLINEARG_VALUE_OR_DEFAULT(needle, def_value) \
+    get_cmdlinearg(argc, argv, needle, true, def_value)
+
+static char* get_cmdlinearg(
+    int haystack_size, char** haystack, char *needle, bool want_value, char* def_value)
+{
+    for (int i = 0; i < haystack_size; i++) {
+        if (want_value) {
+            char* equals_ptr = strchr(haystack[i], '=');
+            if (equals_ptr) {
+                int equals_idx = equals_ptr - haystack[i];
+                int r = strncmp(haystack[i], needle, equals_idx);
+                if (0 == r) {
+                    return equals_ptr+1;
+                }
+            }
+        } else if (0 == strcmp(haystack[i], needle)) {
+            return needle;
+        }
+    }
+    return def_value;
+}
+
+static char* get_ge_log_levels(char *log_level)
+{
+    char *log_level_slice = 0 == strcmp("all", log_level)
+        ? LOG_LEVELS_LOW_TO_HIGH
+        : strstr(LOG_LEVELS_LOW_TO_HIGH, log_level);
+    return log_level_slice ? log_level_slice : "";
+}
+
+static void set_logging_level(char *log_level)
+{
+    log_level = log_level ? log_level : getenv("TESTING_LOG_LEVEL");
+    log_level = log_level ? log_level : DEFAULT_LOG_LEVEL;
+    if (log_level) {
+        log_filter = get_ge_log_levels(log_level);
+    }
+    TEST_LOG("info") "Enabled logging levels: %s\n", log_filter);
+}
+
+static void set_filtered_tests(char *filter)
+{
+    if (filter) {
+        if (strchr(filter, '-') == filter) {
+            char *actual_filter = filter + 1;
+            TEST_LOG("info") "Skip tests matching: %s\n", actual_filter);
+            cmocka_set_skip_filter(actual_filter);
+        } else {
+            TEST_LOG("info") "Run tests matching: %s\n", filter);
+            cmocka_set_test_filter(filter);
+        }
+    }
+}
+
+
+static const struct CMUnitTest tests[] = {
+    cmocka_unit_test(test_soa_serial_counter),
+    cmocka_unit_test(test_soa_serial_keep_okay),
+    cmocka_unit_test(test_soa_serial_keep_unusable),
+    cmocka_unit_test(test_soa_serial_unixtime_gt_now),
+    cmocka_unit_test(test_soa_serial_unixtime_eq_now),
+    cmocka_unit_test(test_soa_serial_unixtime_lt_now),
+    cmocka_unit_test(test_serial_gt),
+    cmocka_unit_test(test_serial_gt_incomparable),
+    cmocka_unit_test_setup_teardown(e2e_test_soa_serial_unixtime_gt_now, e2e_setup, e2e_teardown),
+    cmocka_unit_test_setup_teardown(e2e_test_soa_serial_force_serial, e2e_setup, e2e_teardown),
+    cmocka_unit_test_setup_teardown(e2e_test_soa_serial_unable_to_force_serial, e2e_setup, e2e_teardown),
+};    
+
+int main(int argc, char *argv[])
+{
+    if (IS_CMDLINEFLAG_SET("--help") || IS_CMDLINEFLAG_SET("-h")) {
+        fprintf(stderr, "Usage: %s [--help|--list]\n", argv[0]);
+        fprintf(stderr, "       %s [--log=info|error|etc] [--test=(-)some*n?me]\n", argv[0]);
+        return 0;
+    }
+    if (IS_CMDLINEFLAG_SET("--list") || IS_CMDLINEFLAG_SET("-l")) {
+        fprintf(stderr, "Listing all test names:\n");
+        for (int i = 0; i < (sizeof(tests)/sizeof(struct CMUnitTest)); i++) {
+            fprintf(stderr, "  - %s\n", tests[i].name);
+        }
+        return 0;
+    }
+    set_logging_level(GET_CMDLINEARG_VALUE("--log"));
+    set_filtered_tests(GET_CMDLINEARG_VALUE_OR_DEFAULT("--test", "*"));
+
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
