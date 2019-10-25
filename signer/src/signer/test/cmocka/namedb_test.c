@@ -28,8 +28,9 @@
  * SOA serial management testing using CMocka.
  * 
  * To run: make check
+ * Or: TESTING_LOG_LEVEL="all" make check
  * Test log output is written to signer/src/test-suite.log by default.
- * 
+ *
  * Assumes that src/signer/Makefile.am is configured to build a separate
  * check binary using linker arguments -Wl,--wrap=ods_log_debug,--wrap=... for
  * each of the __wrap_ functions defined below.
