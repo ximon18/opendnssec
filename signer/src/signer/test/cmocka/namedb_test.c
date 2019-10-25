@@ -182,24 +182,6 @@ ldns_rr * __wrap_hsm_get_dnskey(
     MOCK_ANNOUNCE();
     return mock();
 }
-/*ldns_rr* __wrap_hsm_sign_rrset(
-    hsm_ctx_t *ctx, const ldns_rr_list* rrset, const hsm_key_t *key,
-    const hsm_sign_params_t *sign_params) {
-    MOCK_ANNOUNCE();
-    // assert_ptr_equal(MOCK_POINTER, key);
-    ldns_rr_list_print(stderr, rrset);
-    ldns_rr *signature = hsm_create_empty_rrsig(rrset, sign_params);
-    fprintf(stderr, "XIMON: hsr: sig=%p\n", signature);
-    ldns_rr_print(stderr, signature);
-
-    unsigned char sig_bytes[10] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09 };
-    ldns_rdf *b64_rdf = ldns_rdf_new_frm_data(LDNS_RDF_TYPE_B64, 10, sig_bytes);
-    fprintf(stderr, "XIMON: hsr: b64=%p\n", b64_rdf);
-    ldns_rr_rrsig_set_sig(signature, b64_rdf);
-    fprintf(stderr, "XIMON: hsr: sig=%p\n", signature);
-    // return MOCK_POINTER;
-    return signature;
-}*/
 char * __wrap_hsm_get_error(hsm_ctx_t *gctx) { return NULL; }
 
 
