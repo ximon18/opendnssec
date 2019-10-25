@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "namedb.h": "c",
+        "stdio.h": "c",
+        "cmocka.h": "c",
+        "type_traits": "c"
+    },
+    "C_Cpp.dimInactiveRegions": false
+}
