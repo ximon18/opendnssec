@@ -720,7 +720,6 @@ static void e2e_test_soa_serial_force_serial(e2e_test_state_type** state)
     will_return_always(__wrap_time_now, zone->db->inbserial + 1);
 
     // When signing expect: no errors or warnings
-    expect_ods_log_warning("something to make the test fail");
 
     // Go!
     worker_perform_task((*state)->worker);
