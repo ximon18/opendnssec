@@ -29,6 +29,12 @@
  *
  */
 
+#ifndef TESTING_WITH_MOCKS
+#  define mockable_static static
+#else
+#  define mockable_static __attribute__((weak))
+#endif
+
 #include "daemon/engine.h"
 #include "shared/hsm.h"
 #include "shared/log.h"
@@ -56,7 +62,7 @@ lhsm_clear_key_cache(key_type* key)
     }
 }
 
-static const hsm_key_t*
+mockable_static const hsm_key_t*
 keylookup(hsm_ctx_t* ctx, const char* locator)
 {
     const hsm_key_t* key;
@@ -83,7 +89,6 @@ lhsm_get_key(hsm_ctx_t* ctx, ldns_rdf* owner, key_type* key_id)
 {
     char *error = NULL;
     int retries = 0;
-
     if (!owner || !key_id) {
         ods_log_error("[%s] unable to get key: missing required elements",
             hsm_str);

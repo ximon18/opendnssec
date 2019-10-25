@@ -200,7 +200,30 @@ LIBCMOCKA = -lcmocka
 check_PROGRAMS = test/namedb_test
 TESTS = test/namedb_test
 test_namedb_test_SOURCES=   signer/test/cmocka/namedb_test.c $(SIGNER_NON_MAIN_SOURCES)
-test_namedb_test_CPPFLAGS=  $(AM_CPPFLAGS)  
-test_namedb_test_CPPFLAGS+= -DTESTING_WITH_MOCKS
+test_namedb_test_SOURCES+=  cryptoki_compat/pkcs11.h
+test_namedb_test_CPPFLAGS=  $(AM_CPPFLAGS) -DTESTING_WITH_MOCKS
+test_namedb_test_CPPFLAGS+= -I$(top_srcdir)/libhsm/src/lib/cryptoki_compat
 test_namedb_test_LDADD=		$(ods_signer_LDADD) $(LIBCMOCKA)
-test_namedb_test_LDFLAGS=	-Wl,--wrap=ods_fatal_exit,--wrap=ods_log_verbose,--wrap=ods_log_debug,--wrap=ods_log_warning,--wrap=ods_log_error,--wrap=time_now
+# Override functionality that must be handled differently or disabled when testing
+test_namedb_test_LDFLAGS=	-Wl,--wrap=ods_fatal_exit
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_log_verbose
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_log_debug
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_log_deeebug
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_log_info
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_log_warning
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_log_error
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_log_crit
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=time_now
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=hsm_check_context
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=hsm_create_context
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=hsm_destroy_context
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=hsm_get_dnskey
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=hsm_get_error
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=keylookup
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=pthread_mutex_lock
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=pthread_mutex_unlock
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=adapter_write
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=zone_backup2
+# The next one is a cmocka function that is too noisy and offers no way to
+# silence it, but by wrapping it we can silence it.
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=print_message

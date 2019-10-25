@@ -222,6 +222,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
+#include <pkcs11.h>
 
 // includes for the ODS code to be tested
 #include "signer/namedb.h"
@@ -229,46 +230,184 @@
 #include "daemon/engine.h"
 #include "shared/util.h"
 
+
 // useful constants
 const int SERIAL_BITS = 32;
 const uint64_t TWO_POW_32 = 4294967296;         // 2^(SERIAL_BITS)
 const uint32_t TWO_POW_31 = 2147483648;         // 2^(SERIAL_BITS - 1)
 const uint32_t MAX_SERIAL_ADD = TWO_POW_31 - 1; // 2^(SERIAL_BITS - 1) - 1
 const uint32_t MOCK_UNIXTIME_NOW = 1234;
+#define MOCK_HSM_MODULE_NAME "MOCK_MODULE"
+
 
 // useful macros
 #define MOCK_ASSERT(expression) \
     mock_assert((int)(expression), #expression, __FILE__, __LINE__);
+#define MOCK_POINTER (void*)0xDEADBEEF
 
 
 // ----------------------------------------------------------------------------
 // monkey patches:
+// these require compilation with -Wl,--wrap=ods_log_debug,--wrap=xxx etc to 
+// cause these wrapper implementations to replace the originals.
 // ----------------------------------------------------------------------------
-// requires compilation with -Wl,--wrap=ods_log_debug,--wrap=xxx etc to cause
-// these wrapper implementations to replace the originals.
-#define WRAP_ODS_LOG(format) \
-    va_list args; \
-    va_start (args, format); \
-    fprintf(stderr, "%s: ", __func__); \
-    vfprintf(stderr, format, args); \
-    fprintf(stderr, "\n"); \
-    va_end(args);
 
-void __wrap_ods_fatal_exit(const char *format, ...)  { WRAP_ODS_LOG(format); }
-void __wrap_ods_log_debug(const char *format, ...)   { WRAP_ODS_LOG(format); }
-void __wrap_ods_log_verbose(const char *format, ...) { WRAP_ODS_LOG(format); }
-void __wrap_ods_log_warning(const char *format, ...)
-{
-    WRAP_ODS_LOG(format);
+// Mock logging
+char *log_filter = "warning|error|crit";
+#define LOG_LEVEL_ENABLED(level) \
+    0 == strcmp(log_filter, "all") || strstr(log_filter, level)
+
+#define TEST_LOG_NOCHECK(level) \
+    fprintf(stderr, "test: log[" level "] "
+
+#define TEST_LOG(level) \
+    if (LOG_LEVEL_ENABLED(level)) TEST_LOG_NOCHECK(level)
+
+#define WRAP_VARARGS_LOGN(level, format) \
+    WRAP_VARARGS_LOG_WITH_EOL(level, format, "\n")
+
+#define WRAP_VARARGS_LOG(level, format) \
+    WRAP_VARARGS_LOG_WITH_EOL(level, format, "")
+
+#define WRAP_VARARGS_LOG_WITH_EOL(level, format, eol) \
+    if (LOG_LEVEL_ENABLED(level)) { \
+        va_list args; \
+        va_start (args, format); \
+        TEST_LOG_NOCHECK(level)); \
+        vfprintf(stderr, format, args); \
+        fprintf(stderr, eol); \
+        va_end(args); \
+    }
+
+#define WRAP_UNEXPECTED_ODS_LOG(level, format) \
+    WRAP_VARARGS_LOGN(level, format); \
     check_expected(format);
+
+void __wrap_print_message(const char* const format, ...) {
+    // Silence irritating CMocka printf output for which no off switch exists.
+    if (!strcmp(format, "Expected assertion false occurred")) {
+        WRAP_VARARGS_LOG("mock", format);
+    }
 }
-void __wrap_ods_log_error(const char *format, ...)
-{
-    WRAP_ODS_LOG(format);
-    check_expected(format);
-}
+void __wrap_ods_fatal_exit(const char *format, ...)  { WRAP_VARARGS_LOGN("fatal", format); }
+void __wrap_ods_log_debug(const char *format, ...)   { WRAP_VARARGS_LOGN("debug", format); }
+void __wrap_ods_log_deeebug(const char *format, ...) { WRAP_VARARGS_LOGN("deeebug", format); }
+void __wrap_ods_log_verbose(const char *format, ...) { WRAP_VARARGS_LOGN("verbose", format); }
+void __wrap_ods_log_info(const char *format, ...)    { WRAP_VARARGS_LOGN("info", format); }
+void __wrap_ods_log_warning(const char *format, ...) { WRAP_UNEXPECTED_ODS_LOG("warning", format); }
+void __wrap_ods_log_error(const char *format, ...)   { WRAP_UNEXPECTED_ODS_LOG("error", format); }
+void __wrap_ods_log_crit(const char *format, ...)    { WRAP_UNEXPECTED_ODS_LOG("crit", format); }
+
+#define MOCK_ANNOUNCE() \
+    TEST_LOG("mock") "mock: %s()\n", __func__);
+
+
+// Mock time
 time_t __wrap_time_now(void)
 {
+    MOCK_ANNOUNCE();
+    return mock();
+}
+
+// Mock HSM
+CK_RV mock_C_DigestInit(unsigned long session, CK_MECHANISM_PTR m) {
+    MOCK_ANNOUNCE();
+    return CKR_OK;
+}
+CK_RV mock_C_Digest(unsigned long session, unsigned char* data,
+    unsigned long data_len, unsigned char* digest, unsigned long *digest_len) {
+    static unsigned char MOCK_DIGEST[] = { 0xD, 0xE, 0xA, 0xD, 0xB, 0xE, 0xE, 0xF };
+    MOCK_ANNOUNCE();
+    memcpy(digest, MOCK_DIGEST, sizeof(MOCK_DIGEST));
+    *digest_len = sizeof(MOCK_DIGEST);
+    return CKR_OK;
+}
+CK_RV mock_C_SignInit(unsigned long session, CK_MECHANISM_PTR m, unsigned long pk) {
+    MOCK_ANNOUNCE();
+    return CKR_OK;
+}
+CK_RV mock_C_Sign(unsigned long session, unsigned char* data,
+    unsigned long data_len, unsigned char* signature, unsigned long *signature_len) {
+    static unsigned char MOCK_SIGNATURE[] = { 0xD, 0xE, 0xA, 0xD, 0xB, 0xE, 0xE, 0xF };
+    MOCK_ANNOUNCE();
+    function_called();
+    memcpy(signature, MOCK_SIGNATURE, sizeof(MOCK_SIGNATURE));
+    *signature_len = sizeof(MOCK_SIGNATURE);
+    return CKR_OK;
+}
+hsm_ctx_t * __wrap_hsm_create_context() {
+    MOCK_ANNOUNCE();
+    return mock();
+}
+int __wrap_hsm_check_context() {
+    MOCK_ANNOUNCE();
+    return HSM_OK;
+}
+void __wrap_hsm_destroy_context(hsm_ctx_t *ctx) {
+    MOCK_ANNOUNCE();
+    // Destruction is handled by the test teardown function.
+}
+ldns_rr * __wrap_hsm_get_dnskey(
+    hsm_ctx_t *ctx, const hsm_key_t *key, const hsm_sign_params_t *sign_params) {
+    MOCK_ANNOUNCE();
+    return mock();
+}
+/*ldns_rr* __wrap_hsm_sign_rrset(
+    hsm_ctx_t *ctx, const ldns_rr_list* rrset, const hsm_key_t *key,
+    const hsm_sign_params_t *sign_params) {
+    MOCK_ANNOUNCE();
+    // assert_ptr_equal(MOCK_POINTER, key);
+    ldns_rr_list_print(stderr, rrset);
+    ldns_rr *signature = hsm_create_empty_rrsig(rrset, sign_params);
+    fprintf(stderr, "XIMON: hsr: sig=%p\n", signature);
+    ldns_rr_print(stderr, signature);
+
+    unsigned char sig_bytes[10] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09 };
+    ldns_rdf *b64_rdf = ldns_rdf_new_frm_data(LDNS_RDF_TYPE_B64, 10, sig_bytes);
+    fprintf(stderr, "XIMON: hsr: b64=%p\n", b64_rdf);
+    ldns_rr_rrsig_set_sig(signature, b64_rdf);
+    fprintf(stderr, "XIMON: hsr: sig=%p\n", signature);
+    // return MOCK_POINTER;
+    return signature;
+}*/
+char * __wrap_hsm_get_error(hsm_ctx_t *gctx) { return NULL; }
+
+
+// Mock locks for thread synchronisation as we run the tests in a single thread
+int __wrap_pthread_mutex_lock (pthread_mutex_t *__mutex) { return 0; }
+int __wrap_pthread_mutex_unlock (pthread_mutex_t *__mutex) { return 0; }
+
+
+// Disable outputs during testing
+ods_status __wrap_adapter_write(void* zone) {
+    MOCK_ANNOUNCE();
+    function_called();
+    return ODS_STATUS_OK;
+}
+ods_status __wrap_zone_backup2(zone_type* zone) {
+    MOCK_ANNOUNCE();
+    return ODS_STATUS_OK;
+}
+
+
+// ----------------------------------------------------------------------------
+// Weak implementation overrides.
+// These replace existing definitions whose implementation marked the method
+// with __attribute__((weak)) thereby allowing us to override the definition.
+// ----------------------------------------------------------------------------
+
+// Mock worker task queuing and drudger thread
+void worker_queue_rrset(worker_type* worker, fifoq_type* q, rrset_type* rrset) {
+    // emulate a drudger thread picking up a queued task, don't actually queue
+    // anything instead just execute the drudger action that is performed on
+    // dequeued tasks, i.e. sign an rrset.
+    MOCK_ANNOUNCE();
+    hsm_ctx_t *ctx = mock();
+    assert_int_equal(ODS_STATUS_OK, rrset_sign(ctx, rrset, time_now()));
+}
+
+const hsm_key_t* keylookup(hsm_ctx_t* ctx, const char* locator) {
+    MOCK_ANNOUNCE();
     return mock();
 }
 
@@ -286,7 +425,7 @@ static int check_contains(const LargestIntegralType value, const LargestIntegral
     if (match != NULL) {
         return 1;
     } else {
-        fprintf(stderr, "check_contains: '%s' not found in '%s'\n", needle, haystack);
+        TEST_LOG("crit") "check_contains: '%s' not found in '%s'\n", needle, haystack);
         return 0;
     }
 }
@@ -322,7 +461,7 @@ static void set_mock_time_now_value(time_t t)
     {0}; \
     will_return(__wrap_time_now, 0);
 
-static void rfc1982_serial_increment(uint32_t s, uint32_t n)
+static uint32_t rfc1982_serial_increment(uint32_t s, uint32_t n)
 {
     // RFC-1982 section "3.1. Addition":
     // Serial numbers may be incremented by the addition of a positive
@@ -538,58 +677,146 @@ static void test_soa_serial_unixtime_lt_now(void **unused)
     assert_int_equal(db.intserial, MOCK_UNIXTIME_NOW);
 }
 
+typedef struct worker_state_struct {
+    worker_type *worker;
+    hsm_ctx_t *hsm_ctx;
+    hsm_key_t *hsm_key;
+} worker_state_type;
+
 static int worker_setup(void** state)
 {
-    namedb_type* db = calloc(1, sizeof(namedb_type));
-
+    // build a minimal zone
     zone_type* zone = zone_create(strdup("blah."), LDNS_RR_CLASS_IN);
+    zone->signconf = signconf_create();
+    zone->signconf->soa_serial = strdup("unixtime");
+    zone->signconf->sig_resign_interval = duration_create_from_string("P1D");
+    zone->signconf->keys = keylist_create(zone->signconf);
+    zone->adoutbound = adapter_create("MOCK_CONFIG_STR", -1, 0);
+
+    // add a soa record to the zone
     ldns_rr* rrsoa = ldns_rr_new_frm_type(LDNS_RR_TYPE_SOA);
     ldns_rr_set_class(rrsoa, LDNS_RR_CLASS_IN);
     ldns_rr_set_ttl(rrsoa, 3600);
     ldns_rr_set_owner(rrsoa, ldns_rdf_clone(zone->apex));
-    zone_add_rr(zone, rrsoa, 0);
+    ldns_rdf* mname, *rname;
+    ldns_str2rdf_str(&mname, "orgnameserver");
+    ldns_str2rdf_str(&rname, "someone.orgnameserver.com.");
+    ldns_rr_set_rdf(rrsoa, mname, 0); // MNAME
+    ldns_rr_set_rdf(rrsoa, rname, 1); // RNAME
+    ldns_rr_set_rdf(rrsoa, ldns_native2rdf_int32(LDNS_RDF_TYPE_INT32, 0), 2); // SERIAL
+    ldns_rr_set_rdf(rrsoa, ldns_native2rdf_int32(LDNS_RDF_TYPE_INT32, 3600), 3); // REFRESH
+    ldns_rr_set_rdf(rrsoa, ldns_native2rdf_int32(LDNS_RDF_TYPE_INT32, 1800), 4); // RETRY
+    ldns_rr_set_rdf(rrsoa, ldns_native2rdf_int32(LDNS_RDF_TYPE_INT32, 7200), 5); // EXPIRE
+    ldns_rr_set_rdf(rrsoa, ldns_native2rdf_int32(LDNS_RDF_TYPE_INT32, 60), 6); // MINIMUM
+    if (ODS_STATUS_OK != zone_add_rr(zone, rrsoa, 0)) fail();
 
-    zone->signconf = calloc(1, sizeof(signconf_type));
-    zone->signconf->soa_serial = strdup("unixtime");
-
+    // prepare a task for working on the zone
+    // the details of the task are test specific and so not defined here
     task_type* task = calloc(1, sizeof(task_type));
     task->zone = zone;
 
+    // prepare an "engine" - what is an engine actually?
     engine_type* engine = calloc(1, sizeof(engine_type));
+    engine->signq = MOCK_POINTER;
+    engine->config = MOCK_POINTER;
 
-    worker_type* worker = calloc(1, sizeof(worker_type));
+    // prepare a worker to process the zone task
+    worker_type *worker = calloc(1, sizeof(worker_type));
     worker->type = WORKER_WORKER;
     worker->task = task;
     worker->engine = engine;
-    *state = worker;
 
+    // define a mock pkcs#11 function symbol table for use with the HSM context
+    // built below.
+    CK_FUNCTION_LIST_PTR mock_sym_table = calloc(1, sizeof(CK_FUNCTION_LIST));
+    mock_sym_table->C_DigestInit = mock_C_DigestInit;
+    mock_sym_table->C_Digest = mock_C_Digest;
+    mock_sym_table->C_SignInit = mock_C_SignInit;
+    mock_sym_table->C_Sign = mock_C_Sign;
+
+    // prepare a mock HSM context so that we can use libhsm functionality
+    // without a real/soft HSM.
+    hsm_ctx_t *ctx = calloc(1, sizeof(hsm_ctx_t));
+    ctx->session_count = 1;
+    ctx->session[0] = calloc(1, sizeof(hsm_session_t));
+    ctx->session[0]->session = 0;
+    ctx->session[0]->module = calloc(1, sizeof(hsm_module_t));
+    ctx->session[0]->module->name = strdup(MOCK_HSM_MODULE_NAME);
+    ctx->session[0]->module->sym = mock_sym_table;
+
+    // define a HSM key whose HSM module name matches the mock HSM context
+    // we just created.
+    hsm_key_t *hsm_key = calloc(1, sizeof(hsm_key_t));
+    hsm_key->modulename = strdup(MOCK_HSM_MODULE_NAME);
+
+    // expose the objects above to CMocka tests via their state argument
+    worker_state_type *worker_state = calloc(1, sizeof(worker_state_type));
+    worker_state->worker = worker;
+    worker_state->hsm_ctx = ctx;
+    worker_state->hsm_key = hsm_key;
+
+    *state = worker_state;
     return 0;
 }
 
-static int worker_teardown(worker_type** state)
+static int worker_teardown(worker_state_type** state)
 {
-    worker_type* worker = *state;
+    worker_state_type* worker_state = *state;
+    worker_type* worker = worker_state->worker;
+
+    // commented out because it causes test failure with error:
+    //   munmap_chunk(): invalid pointer
+    // zone_cleanup((zone_type*)worker->task->zone);
     free(worker->engine);
-    free(((zone_type*)worker->task->zone)->db);
-    free(worker->task->zone);
     free(worker->task);
     free(worker);
+
+    free(worker_state->hsm_ctx->session[0]->module->sym);
+    free(worker_state->hsm_ctx->session[0]->module->name);
+    free(worker_state->hsm_ctx->session[0]->module);
+    free(worker_state->hsm_ctx->session[0]);
+    free(worker_state->hsm_ctx);
+
+    free(worker_state->hsm_key);
+    free(worker_state);
     return 0;
 }
 
 // WORK IN PROGRESS
 static void test_soa_serial_unixtime_lt_now_e2e(worker_type** state)
 {
+    worker_state_type *worker_state = *state;
+    worker_type *worker = worker_state->worker;
+
+    // create a key for signing
+    ldns_key *key_pair = ldns_key_new_frm_algorithm(LDNS_RSASHA256, 2048);
+    ldns_rr *key_rr = ldns_key2rr(key_pair);
+    zone_type *zone = worker->task->zone;
+    keylist_push(zone->signconf->keys, "MOCK_LOCATOR",
+        key_pair->_alg, LDNS_KEY_ZONE_KEY, 1, 0, 1, 0);
+
+    ldns_rr* rra = ldns_rr_new_frm_type(LDNS_RR_TYPE_A);
+    ldns_rr_set_class(rra, LDNS_RR_CLASS_IN);
+    ldns_rr_set_ttl(rra, 3600);
+    ldns_rr_set_owner(rra, ldns_rdf_clone(zone->apex));
+    ldns_rdf* mname, *rname;
+    ldns_rr_a_set_address(rra, ldns_native2rdf_int32(LDNS_RDF_TYPE_A,
+        (9<<24)+(9<<16)+(9<<8)+(9<<0)));
+    if (ODS_STATUS_OK != zone_add_rr(zone, rra, 0)) fail();
+
     // worker_start is the innermost function that is visible to us but calling
     // that involves setting up engine details that we're not interested in and
     // is a lot of extra boilerplate. Instead mark the worker_perform_task()
     // function as non-static when in test mode so that we can access it from
     // here. See: https://stackoverflow.com/a/49901081
-    worker_type* worker = *state;
     worker->task->what = TASK_SIGN;
     will_return_always(__wrap_time_now, 1);
-    expect_ods_log_error("failed to replace soa serial"); // see zone_update_serial()
-    expect_ods_log_error("unable to sign zone");
+    will_return_always(__wrap_hsm_get_dnskey, key_rr);
+    will_return_always(keylookup, worker_state->hsm_key);
+    will_return_always(__wrap_hsm_create_context, worker_state->hsm_ctx);
+    will_return_always(worker_queue_rrset, worker_state->hsm_ctx);
+    expect_function_call(mock_C_Sign);
+    expect_function_call(__wrap_adapter_write);
     worker_perform_task(worker);
 }
 
@@ -638,6 +865,11 @@ static void test_serial_gt_incomparable(void **unused)
 
 int main(void)
 {
+    const char* log_level_env_var = getenv("TESTING_LOG_LEVEL");
+    if (log_level_env_var) {
+        log_filter = log_level_env_var;
+    }
+
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_soa_serial_counter),
         cmocka_unit_test(test_soa_serial_keep_okay),
