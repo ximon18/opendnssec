@@ -24,6 +24,7 @@
  *
  */
 #include "test_framework.h"
+#include "mock_outputs.h"
 #include "signer/zone.h"
 
 
@@ -52,18 +53,11 @@ fred   IN  A      192.168.0.4
 
 
 
-static int check_sig_count(
-    const LargestIntegralType value, const LargestIntegralType check_value_data)
-{
-    zone_type *zone = (zone_type *) value;
-    int expected_sig_count = (int) check_value_data;
-    if (zone->stats->sig_count == expected_sig_count) {
-        return 1;
-    } else {
-        TEST_LOG("crit") "check_sig_count: %d != %d\n", zone->stats->sig_count, expected_sig_count);
-        return 0;
-    }
-}
+ADAPTER_WRITE_ZONE_CHECKER(
+    check_sig_count,
+    zone->stats->sig_count == expected,
+    "Incorrect sig_count %d",
+    zone->stats->sig_count);
 
 
 void e2e_test_load_zone_file(e2e_test_state_type** cmocka_state)
