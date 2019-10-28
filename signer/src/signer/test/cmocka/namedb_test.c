@@ -57,7 +57,31 @@
 #include "daemon/worker.h"
 #include "daemon/engine.h"
 #include "shared/util.h"
+#include "shared/file.h"
 
+
+const char *test_zone = R"(
+$TTL	86400 ; 24 hours could have been written as 24h or 1d
+; $TTL used for all RRs without explicit TTL value
+$ORIGIN blah.
+@  1D  IN  SOA ns1.example.com. hostmaster.example.com. (
+			      2002022401 ; serial
+			      3H ; refresh
+			      15 ; retry
+			      1w ; expire
+			      3h ; nxdomain ttl
+			     )
+       IN  NS     ns1.example.com. ; in the domain
+       IN  NS     ns2.smokeyjoe.com. ; external to domain
+       IN  MX  10 mail.another.com. ; external mail provider
+; server host definitions
+ns1    IN  A      192.168.0.1  ;name server definition     
+www    IN  A      192.168.0.2  ;web server definition
+ftp    IN  CNAME  www.example.com.  ;ftp server definition
+; non server domain hosts
+bill   IN  A      192.168.0.3
+fred   IN  A      192.168.0.4
+)";
 
 // useful constants
 const int SERIAL_BITS = 32;
@@ -83,7 +107,7 @@ const char *MOCK_HSM_MODULE_NAME = "MOCK_MODULE";
 // ----------------------------------------------------------------------------
 
 // Mock logging
-char *log_filter = NULL;
+char *log_filter = "all";
 #define LOG_LEVEL_ENABLED(level) \
     strstr(log_filter, level)
 
@@ -141,6 +165,29 @@ time_t __wrap_time_now(void)
     return mock();
 }
 
+
+// Mock file access
+FILE* __wrap_ods_fopen(const char* file, const char* dir, const char* mode)
+{
+    MOCK_ANNOUNCE();
+    return MOCK_POINTER; // override fgetc and return data based on the ptr returned here?
+}
+void __wrap_ods_fclose(FILE* fd) {
+    MOCK_ANNOUNCE();
+    // nothing to do
+}
+int __wrap_ods_fgetc(FILE* fd, unsigned int* line_nr)
+{
+    // MOCK_ANNOUNCE();
+    if (fd == MOCK_POINTER) {
+        int c = mock();
+        if ((char)c == '\n') (*line_nr)++;
+        return c;
+    } else {
+        fail();
+    }
+}
+
 // Mock HSM
 CK_RV mock_C_DigestInit(unsigned long session, CK_MECHANISM_PTR m) {
     MOCK_ANNOUNCE();
@@ -182,7 +229,13 @@ void __wrap_hsm_destroy_context(hsm_ctx_t *ctx) {
 ldns_rr * __wrap_hsm_get_dnskey(
     hsm_ctx_t *ctx, const hsm_key_t *key, const hsm_sign_params_t *sign_params) {
     MOCK_ANNOUNCE();
-    return mock();
+    void **keys = mock();
+    // abuse the private key field for test purposes
+    if (key->private_key < 6) {
+        return keys[key->private_key];
+    }
+    fail_msg("No key with debug index %d for key_tag %d found\n",
+        key->private_key, sign_params->keytag);
 }
 char * __wrap_hsm_get_error(hsm_ctx_t *gctx) { return NULL; }
 
@@ -222,7 +275,13 @@ void worker_queue_rrset(worker_type* worker, fifoq_type* q, rrset_type* rrset) {
 
 const hsm_key_t* keylookup(hsm_ctx_t* ctx, const char* locator) {
     MOCK_ANNOUNCE();
-    return mock();
+    void **keys = mock();
+    for (int i = 0; i < 8; i += 4) {
+        if (0 == strcmp(keys[i+2], locator)) {
+            return (hsm_key_t*) keys[i+3];
+        }
+    }
+    fail_msg("No key with locator %s found\n", locator);
 }
 
 
@@ -265,6 +324,14 @@ static void expect_ods_log_warning(const char* partial_msg)
 static void set_mock_time_now_value(time_t t)
 {
     will_return(__wrap_time_now, t);
+}
+
+static void set_mock_input_zone_file(char* file_content)
+{
+    for (int i = 0; i < strlen(file_content); i++) {
+        will_return(__wrap_ods_fgetc, file_content[i]);
+    }
+    will_return(__wrap_ods_fgetc, EOF);
 }
 
 
@@ -359,7 +426,6 @@ static void test_one_serial_gt(uint32_t i1, uint32_t i2)
 typedef struct e2e_test_state_struct {
     worker_type *worker;
     hsm_ctx_t *hsm_ctx;
-    hsm_key_t *hsm_key;
 } e2e_test_state_type;
 
 static int e2e_setup(void** state)
@@ -369,24 +435,25 @@ static int e2e_setup(void** state)
     zone->signconf = signconf_create();
     zone->signconf->sig_resign_interval = duration_create_from_string("P1D");
     zone->signconf->keys = keylist_create(zone->signconf);
+    zone->signconf->nsec_type = LDNS_RR_TYPE_NSEC;
     zone->adoutbound = adapter_create("MOCK_CONFIG_STR", -1, 0);
 
     // add a soa record to the zone
-    ldns_rr* rrsoa = ldns_rr_new_frm_type(LDNS_RR_TYPE_SOA);
-    ldns_rr_set_class(rrsoa, LDNS_RR_CLASS_IN);
-    ldns_rr_set_ttl(rrsoa, 3600);
-    ldns_rr_set_owner(rrsoa, ldns_rdf_clone(zone->apex));
-    ldns_rdf* mname, *rname;
-    ldns_str2rdf_str(&mname, "orgnameserver");
-    ldns_str2rdf_str(&rname, "someone.orgnameserver.com.");
-    ldns_rr_set_rdf(rrsoa, mname, 0); // MNAME
-    ldns_rr_set_rdf(rrsoa, rname, 1); // RNAME
-    ldns_rr_set_rdf(rrsoa, ldns_native2rdf_int32(LDNS_RDF_TYPE_INT32, 0), 2); // SERIAL
-    ldns_rr_set_rdf(rrsoa, ldns_native2rdf_int32(LDNS_RDF_TYPE_INT32, 3600), 3); // REFRESH
-    ldns_rr_set_rdf(rrsoa, ldns_native2rdf_int32(LDNS_RDF_TYPE_INT32, 1800), 4); // RETRY
-    ldns_rr_set_rdf(rrsoa, ldns_native2rdf_int32(LDNS_RDF_TYPE_INT32, 7200), 5); // EXPIRE
-    ldns_rr_set_rdf(rrsoa, ldns_native2rdf_int32(LDNS_RDF_TYPE_INT32, 60), 6); // MINIMUM
-    if (ODS_STATUS_OK != zone_add_rr(zone, rrsoa, 0)) fail();
+    // ldns_rr* rrsoa = ldns_rr_new_frm_type(LDNS_RR_TYPE_SOA);
+    // ldns_rr_set_class(rrsoa, LDNS_RR_CLASS_IN);
+    // ldns_rr_set_ttl(rrsoa, 3600);
+    // ldns_rr_set_owner(rrsoa, ldns_rdf_clone(zone->apex));
+    // ldns_rdf* mname, *rname;
+    // ldns_str2rdf_str(&mname, "orgnameserver");
+    // ldns_str2rdf_str(&rname, "someone.orgnameserver.com.");
+    // ldns_rr_set_rdf(rrsoa, mname, 0); // MNAME
+    // ldns_rr_set_rdf(rrsoa, rname, 1); // RNAME
+    // ldns_rr_set_rdf(rrsoa, ldns_native2rdf_int32(LDNS_RDF_TYPE_INT32, 0), 2); // SERIAL
+    // ldns_rr_set_rdf(rrsoa, ldns_native2rdf_int32(LDNS_RDF_TYPE_INT32, 3600), 3); // REFRESH
+    // ldns_rr_set_rdf(rrsoa, ldns_native2rdf_int32(LDNS_RDF_TYPE_INT32, 1800), 4); // RETRY
+    // ldns_rr_set_rdf(rrsoa, ldns_native2rdf_int32(LDNS_RDF_TYPE_INT32, 7200), 5); // EXPIRE
+    // ldns_rr_set_rdf(rrsoa, ldns_native2rdf_int32(LDNS_RDF_TYPE_INT32, 60), 6); // MINIMUM
+    // if (ODS_STATUS_OK != zone_add_rr(zone, rrsoa, 0)) fail();
 
     // prepare a task for working on the zone
     // the details of the task are test specific and so not defined here
@@ -422,16 +489,10 @@ static int e2e_setup(void** state)
     ctx->session[0]->module->name = strdup(MOCK_HSM_MODULE_NAME);
     ctx->session[0]->module->sym = mock_sym_table;
 
-    // define a HSM key whose HSM module name matches the mock HSM context
-    // we just created.
-    hsm_key_t *hsm_key = calloc(1, sizeof(hsm_key_t));
-    hsm_key->modulename = strdup(MOCK_HSM_MODULE_NAME);
-
     // expose the objects above to CMocka tests via their state argument
     e2e_test_state_type *e2e_test_state = calloc(1, sizeof(e2e_test_state_type));
     e2e_test_state->worker = worker;
     e2e_test_state->hsm_ctx = ctx;
-    e2e_test_state->hsm_key = hsm_key;
 
     *state = e2e_test_state;
     return 0;
@@ -454,22 +515,44 @@ static int e2e_teardown(e2e_test_state_type** state)
     free(e2e_test_state->hsm_ctx->session[0]->module);
     free(e2e_test_state->hsm_ctx->session[0]);
     free(e2e_test_state->hsm_ctx);
-
-    free(e2e_test_state->hsm_key);
     free(e2e_test_state);
     return 0;
 }
 
-static zone_type* e2e_common(e2e_test_state_type** state)
+// worker_start is the innermost function that is visible to us but calling
+// that involves setting up engine details that we're not interested in and
+// is a lot of extra boilerplate. Instead mark the worker_perform_task()
+// function as non-static when in test mode so that we can access it from
+// here. See: https://stackoverflow.com/a/49901081
+static zone_type* e2e_common(e2e_test_state_type** state, task_id task_id)
 {
     e2e_test_state_type *e2e_test_state = *state;
     worker_type *worker = e2e_test_state->worker;
-
-    // create a key for signing
-    ldns_key *key_pair = ldns_key_new_frm_algorithm(LDNS_RSASHA256, 2048);
-    ldns_rr *key_rr = ldns_key2rr(key_pair);
     zone_type *zone = worker->task->zone;
-    keylist_push(zone->signconf->keys, "MOCK_LOCATOR",
+
+    // create a ZSK and KSK for signing
+    ldns_key *key_pair;
+    hsm_key_t *hsm_key;
+    void **keys = calloc(8, sizeof(void*));
+
+    key_pair = keys[0] = ldns_key_new_frm_algorithm(LDNS_RSASHA256, 2048);
+    keys[1] = ldns_key2rr(key_pair); ldns_rr_set_owner(keys[1], ldns_rdf_clone(zone->apex));
+    keys[2] = strdup("MOCK_KSK_LOCATOR");
+    hsm_key = calloc(1, sizeof(hsm_key_t));
+    hsm_key->modulename = strdup(MOCK_HSM_MODULE_NAME);
+    hsm_key->private_key = 1; // index of the ldns_rr key
+    keys[3] = hsm_key;
+    keylist_push(zone->signconf->keys, keys[2],
+        key_pair->_alg, LDNS_KEY_ZONE_KEY, 1, 1, 0, 0);
+
+    key_pair = keys[4] = ldns_key_new_frm_algorithm(LDNS_RSASHA256, 2048);
+    keys[5] = ldns_key2rr(key_pair); ldns_rr_set_owner(keys[5], ldns_rdf_clone(zone->apex));
+    keys[6] = strdup("MOCK_ZSK_LOCATOR");
+    hsm_key = calloc(1, sizeof(hsm_key_t));
+    hsm_key->modulename = strdup(MOCK_HSM_MODULE_NAME);
+    hsm_key->private_key = 5; // index of the ldns_rr key
+    keys[7] = hsm_key;
+    keylist_push(zone->signconf->keys, keys[6],
         key_pair->_alg, LDNS_KEY_ZONE_KEY, 1, 0, 1, 0);
 
     ldns_rr* rra = ldns_rr_new_frm_type(LDNS_RR_TYPE_A);
@@ -481,18 +564,13 @@ static zone_type* e2e_common(e2e_test_state_type** state)
         (9<<24)+(9<<16)+(9<<8)+(9<<0)));
     if (ODS_STATUS_OK != zone_add_rr(zone, rra, 0)) fail();
 
-    // worker_start is the innermost function that is visible to us but calling
-    // that involves setting up engine details that we're not interested in and
-    // is a lot of extra boilerplate. Instead mark the worker_perform_task()
-    // function as non-static when in test mode so that we can access it from
-    // here. See: https://stackoverflow.com/a/49901081
-    worker->task->what = TASK_SIGN;
-    will_return_always(__wrap_hsm_get_dnskey, key_rr);
-    will_return_always(keylookup, e2e_test_state->hsm_key);
+    worker->task->what = task_id;
+    will_return_always(__wrap_hsm_get_dnskey, keys);
+    will_return_always(keylookup, keys);
     will_return_always(__wrap_hsm_create_context, e2e_test_state->hsm_ctx);
     will_return_always(worker_queue_rrset, e2e_test_state->hsm_ctx);
-    expect_function_call(mock_C_Sign);
-    // expect_function_call(__wrap_adapter_write);
+    expect_function_call_any(mock_C_Sign); // once per key per RRSet
+    expect_function_call(__wrap_adapter_write);
 
     // return the zone as it is often what the test wants to manipulate
     return zone;
@@ -681,7 +759,7 @@ static void test_serial_gt_incomparable(void **unused)
 static void e2e_test_soa_serial_unixtime_gt_now(e2e_test_state_type** state)
 {
     // Given
-    zone_type *zone = e2e_common(state);
+    zone_type *zone = e2e_common(state, TASK_SIGN);
     zone->signconf->soa_serial = strdup("unixtime");
     zone->db->inbserial = 2;
     will_return_always(__wrap_time_now, zone->db->inbserial - 1);
@@ -696,7 +774,7 @@ static void e2e_test_soa_serial_unixtime_gt_now(e2e_test_state_type** state)
 static void e2e_test_soa_serial_force_serial(e2e_test_state_type** state)
 {
     // Given
-    zone_type *zone = e2e_common(state);
+    zone_type *zone = e2e_common(state, TASK_SIGN);
     zone->signconf->soa_serial = strdup("unixtime");
     zone->db->inbserial = 2;
     zone->db->altserial = 4;
@@ -712,7 +790,7 @@ static void e2e_test_soa_serial_force_serial(e2e_test_state_type** state)
 static void e2e_test_soa_serial_unable_to_force_serial(e2e_test_state_type** state)
 {
     // Given
-    zone_type *zone = e2e_common(state);
+    zone_type *zone = e2e_common(state, TASK_SIGN);
     zone->signconf->soa_serial = strdup("unixtime");
     zone->db->inbserial = 2;
     zone->db->altserial = 1;
@@ -726,6 +804,31 @@ static void e2e_test_soa_serial_unable_to_force_serial(e2e_test_state_type** sta
     // Go!
     worker_perform_task((*state)->worker);
 }
+
+static void e2e_test_load_zone_file(e2e_test_state_type** state)
+{
+    // Given
+    zone_type *zone = e2e_common(state, TASK_READ);
+    zone->signconf->soa_serial = strdup("datecounter");
+    zone->signconf->last_modified = 1;
+    zone->signconf_filename = "some.xml";
+    zone->adinbound = calloc(1, sizeof(adapter_type));
+    zone->adinbound->type = ADAPTER_FILE;
+    zone->adinbound->configstr = strdup("MOCK_ZONE_FILE");
+    will_return_always(__wrap_time_now, __real_time_now());
+    set_mock_input_zone_file(test_zone);
+
+    // When signing expect:
+    // expect_ods_log_error("TTL for the record");
+
+    // Go!
+    worker_perform_task((*state)->worker);
+}
+
+
+// ----------------------------------------------------------------------------
+// main and supporting functions:
+// ----------------------------------------------------------------------------
 
 #define IS_CMDLINEFLAG_SET(long_needle, short_needle) \
     (get_cmdlinearg(argc, argv, long_needle, false, NULL) ? true : false) || \
@@ -802,6 +905,7 @@ static struct CMUnitTest tests[] = {
     cmocka_unit_test_setup_teardown(e2e_test_soa_serial_unixtime_gt_now, e2e_setup, e2e_teardown),
     cmocka_unit_test_setup_teardown(e2e_test_soa_serial_force_serial, e2e_setup, e2e_teardown),
     cmocka_unit_test_setup_teardown(e2e_test_soa_serial_unable_to_force_serial, e2e_setup, e2e_teardown),
+    cmocka_unit_test_setup_teardown(e2e_test_load_zone_file, e2e_setup, e2e_teardown),
 };
 static const num_tests = (sizeof(tests)/sizeof(struct CMUnitTest));
 

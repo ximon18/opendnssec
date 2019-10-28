@@ -225,6 +225,9 @@ test_namedb_test_LDFLAGS+=  -Wl,--wrap=pthread_mutex_lock
 test_namedb_test_LDFLAGS+=  -Wl,--wrap=pthread_mutex_unlock
 test_namedb_test_LDFLAGS+=  -Wl,--wrap=adapter_write
 test_namedb_test_LDFLAGS+=  -Wl,--wrap=zone_backup2
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_fopen
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_fclose
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_fgetc
 # The next one is a cmocka function that is too noisy and offers no way to
 # silence it, but by wrapping it we can silence it.
 test_namedb_test_LDFLAGS+=  -Wl,--wrap=print_message
