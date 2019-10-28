@@ -116,3 +116,29 @@ void __wrap_ods_log_warning(const char *format, ...) { WRAP_UNEXPECTED_ODS_LOG("
 void __wrap_ods_log_error(const char *format, ...)   { WRAP_UNEXPECTED_ODS_LOG("error", format); }
 void __wrap_ods_log_crit(const char *format, ...)    { WRAP_UNEXPECTED_ODS_LOG("crit", format); }
 void __wrap_ods_fatal_exit(const char *format, ...)  { WRAP_UNEXPECTED_ODS_LOG("fatal", format); }
+
+// ----------------------------------------------------------------------------
+// cmocka check_expect() plugin functions:
+// usage:
+//   expect_check(__wrap_ods_log_warning, format, check_contains, partial_msg);
+// ----------------------------------------------------------------------------
+static int check_contains(const LargestIntegralType value, const LargestIntegralType check_value_data)
+{
+    const char* needle = (const char*) check_value_data;
+    const char* haystack = (const char*) value;
+    char* match = strstr(haystack, needle);
+    if (match != NULL) {
+        return 1;
+    } else {
+        TEST_LOG("crit") "check_contains: '%s' not found in '%s'\n", needle, haystack);
+        return 0;
+    }
+}
+
+// ----------------------------------------------------------------------------
+// custom cmocka-like expect() functions:
+// ----------------------------------------------------------------------------
+static void expect_ods_log_warning(const char* partial_msg) { expect_check(__wrap_ods_log_warning, format, check_contains, partial_msg); }
+static void expect_ods_log_error(const char* partial_msg)   { expect_check(__wrap_ods_log_error, format, check_contains, partial_msg);   }
+static void expect_ods_log_crit(const char* partial_msg)    { expect_check(__wrap_ods_log_crit, format, check_contains, partial_msg);    }
+static void expect_ods_fatal_exit(const char* partial_msg)  { expect_check(__wrap_ods_fatal_exit, format, check_contains, partial_msg);  }
