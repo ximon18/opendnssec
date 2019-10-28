@@ -26,7 +26,7 @@
 #ifndef TEST_POC_E2E_TEST_H
 #define TEST_POC_E2E_TEST_H
 
-#include "test_fw.h"
+#include "test_framework.h"
 
 
 void e2e_test_load_zone_file(e2e_test_state_type** state);

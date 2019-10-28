@@ -23,7 +23,7 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#include "test_fw.h"
+#include "test_framework.h"
 #include "mock_worker.h"
 #include "mock_logging.h"
 #include "mock_hsm.h"

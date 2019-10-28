@@ -26,7 +26,7 @@
 #include <stdbool.h>
 
 
-#include "test_fw.h"
+#include "test_framework.h"
 #include "poc_e2e_test.h"
 
 

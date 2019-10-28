@@ -29,7 +29,7 @@
 
 #include <pkcs11.h>
 #include "libhsm.h"
-#include "test_fw.h"
+#include "test_framework.h"
 
 
 extern const char *MOCK_HSM_MODULE_NAME;

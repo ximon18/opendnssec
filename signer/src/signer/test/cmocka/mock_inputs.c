@@ -23,7 +23,7 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#include "test_fw.h"
+#include "test_framework.h"
 
 
 void set_mock_input_zone_file(const char* file_content)

@@ -26,7 +26,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include "mock_logging.h"
-#include "test_fw.h"
+#include "test_framework.h"
 
 
 #define DEFAULT_LOG_LEVEL      "warning"

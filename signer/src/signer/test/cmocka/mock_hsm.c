@@ -29,7 +29,7 @@
 #include "mock_logging.h"
 #include "mock_hsm.h"
 #include "mock_worker.h"
-#include "test_fw.h"
+#include "test_framework.h"
 
 
 const char *MOCK_HSM_MODULE_NAME = "MOCK_MODULE";
