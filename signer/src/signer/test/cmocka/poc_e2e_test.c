@@ -51,19 +51,36 @@ fred   IN  A      192.168.0.4
 )";
 
 
+
+static int check_sig_count(
+    const LargestIntegralType value, const LargestIntegralType check_value_data)
+{
+    zone_type *zone = (zone_type *) value;
+    int expected_sig_count = (int) check_value_data;
+    if (zone->stats->sig_count == expected_sig_count) {
+        return 1;
+    } else {
+        TEST_LOG("crit") "check_sig_count: %d != %d\n", zone->stats->sig_count, expected_sig_count);
+        return 0;
+    }
+}
+
+
 void e2e_test_load_zone_file(e2e_test_state_type** cmocka_state)
 {
     e2e_test_state_type *state = *cmocka_state;
 
-    // Given
+    // Given an unsigned input zone
     e2e_configure_mocks(state, TASK_READ, test_zone);
     zone_type *zone = state->worker->task->zone;
     zone->signconf->soa_serial = strdup("datecounter");
     zone->signconf->last_modified = 1;
-
     will_return_always(__wrap_time_now, __real_time_now());
 
-    // When signing expect: no errors
+    assert_int_equal(0, zone->stats->sig_count);
+
+    // After signing expect: 15 RRSIGs and no errors
+    expect_check(__wrap_adapter_write, zone, check_sig_count, 15);
 
     // Go!
     worker_perform_task(state->worker);

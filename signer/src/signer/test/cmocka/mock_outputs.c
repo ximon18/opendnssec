@@ -39,6 +39,7 @@
 ods_status __wrap_adapter_write(void* zone) {
     MOCK_ANNOUNCE();
     function_called();
+    check_expected(zone);
     return ODS_STATUS_OK;
 }
 ods_status __wrap_zone_backup2(zone_type* zone) {
