@@ -32,7 +32,7 @@
 
 worker_type *   setup_mock_worker(void);
 void            teardown_mock_worker(const worker_type* worker);
-void            configure_mock_worker(const e2e_test_state_type* state);
+void            configure_mock_worker(const e2e_test_state_type* state, const char *input_zone);
 
 
 #endif

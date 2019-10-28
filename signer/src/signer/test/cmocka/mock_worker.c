@@ -69,17 +69,36 @@ worker_type * setup_mock_worker(void)
 void teardown_mock_worker(const worker_type* worker)
 {
     assert_non_null(worker);
-    // TODO: free ZSK and KSK resources allocated in init above
+
+    zone_type *zone = worker->task->zone;
+    if (zone->signconf->soa_serial) free(zone->signconf->soa_serial);
+    if (zone->adinbound) {
+        if (zone->adinbound->configstr) free(zone->adinbound->configstr);
+        free(zone->adinbound);
+    }
+
     free(worker->engine);
     free(worker->task);
     free(worker);
 }
 
-void configure_mock_worker(const e2e_test_state_type* state)
+void configure_mock_worker(
+    const e2e_test_state_type* state,
+    const char *input_zone)
 {
     will_return_always(worker_queue_rrset, state->hsm_ctx);
     expect_function_call_any(mock_C_Sign);
     expect_function_call(__wrap_adapter_write);
+
+    if (input_zone)
+    {
+        zone_type *zone = state->worker->task->zone;
+        zone->signconf_filename = "UNUSED MOCK SIGNCONF FILENAME";
+        zone->adinbound = calloc(1, sizeof(adapter_type));
+        zone->adinbound->type = ADAPTER_FILE;
+        zone->adinbound->configstr = strdup("UNUSED MOCK ZONE_FILENAME");
+        set_mock_input_zone_file(input_zone);
+    }
 }
 
 // ----------------------------------------------------------------------------

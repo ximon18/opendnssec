@@ -56,24 +56,16 @@ void e2e_test_load_zone_file(e2e_test_state_type** cmocka_state)
     e2e_test_state_type *state = *cmocka_state;
 
     // Given
-    e2e_configure_mocks(state, TASK_READ);
+    e2e_configure_mocks(state, TASK_READ, test_zone);
     zone_type *zone = state->worker->task->zone;
     zone->signconf->soa_serial = strdup("datecounter");
     zone->signconf->last_modified = 1;
-    zone->signconf_filename = "some.xml";
-    zone->adinbound = calloc(1, sizeof(adapter_type));
-    zone->adinbound->type = ADAPTER_FILE;
-    zone->adinbound->configstr = strdup("MOCK_ZONE_FILE");
 
     will_return_always(__wrap_time_now, __real_time_now());
-    set_mock_input_zone_file(test_zone);
 
     // When signing expect:
     // expect_ods_log_error("TTL for the record");
 
     // Go!
     worker_perform_task(state->worker);
-
-    free(zone->adinbound->configstr);
-    free(zone->adinbound);
 }

@@ -66,7 +66,7 @@ int             e2e_get_mock_key_count(void);
 void            e2e_init_mock_key(const char *locator, const zone_type *zone, bool is_ksk, bool is_zsk);
 int             e2e_setup(void** state);
 int             e2e_teardown(e2e_test_state_type** state);
-void            e2e_configure_mocks(const e2e_test_state_type* state, const task_id task_id);
+void            e2e_configure_mocks(const e2e_test_state_type* state, const task_id task_id, const char *input_zone);
 
 
 #endif

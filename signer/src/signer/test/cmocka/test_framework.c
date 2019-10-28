@@ -97,9 +97,12 @@ int e2e_teardown(e2e_test_state_type** state)
     return 0;
 }
 
-void e2e_configure_mocks(const e2e_test_state_type* state, const task_id task_id)
+void e2e_configure_mocks(
+    const e2e_test_state_type* state,
+    const task_id task_id,
+    const char *input_zone)
 {
     state->worker->task->what = task_id;
     configure_mock_hsm(state);
-    configure_mock_worker(state);
+    configure_mock_worker(state, input_zone);
 }
