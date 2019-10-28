@@ -63,8 +63,7 @@ void e2e_test_load_zone_file(e2e_test_state_type** cmocka_state)
 
     will_return_always(__wrap_time_now, __real_time_now());
 
-    // When signing expect:
-    // expect_ods_log_error("TTL for the record");
+    // When signing expect: no errors
 
     // Go!
     worker_perform_task(state->worker);
