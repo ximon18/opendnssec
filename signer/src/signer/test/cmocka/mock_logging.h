@@ -41,4 +41,10 @@ void set_logging_level(const char *log_level);
 void set_filtered_tests(const char *filter);
 
 
+void expect_ods_log_warning(const char* partial_msg);
+void expect_ods_log_error(const char* partial_msg);
+void expect_ods_log_crit(const char* partial_msg);
+void expect_ods_fatal_exit(const char* partial_msg);
+
+
 #endif

@@ -138,7 +138,7 @@ static int check_contains(const LargestIntegralType value, const LargestIntegral
 // ----------------------------------------------------------------------------
 // custom cmocka-like expect() functions:
 // ----------------------------------------------------------------------------
-static void expect_ods_log_warning(const char* partial_msg) { expect_check(__wrap_ods_log_warning, format, check_contains, partial_msg); }
-static void expect_ods_log_error(const char* partial_msg)   { expect_check(__wrap_ods_log_error, format, check_contains, partial_msg);   }
-static void expect_ods_log_crit(const char* partial_msg)    { expect_check(__wrap_ods_log_crit, format, check_contains, partial_msg);    }
-static void expect_ods_fatal_exit(const char* partial_msg)  { expect_check(__wrap_ods_fatal_exit, format, check_contains, partial_msg);  }
+void expect_ods_log_warning(const char* partial_msg) { expect_check(__wrap_ods_log_warning, format, check_contains, partial_msg); }
+void expect_ods_log_error(const char* partial_msg)   { expect_check(__wrap_ods_log_error, format, check_contains, partial_msg);   }
+void expect_ods_log_crit(const char* partial_msg)    { expect_check(__wrap_ods_log_crit, format, check_contains, partial_msg);    }
+void expect_ods_fatal_exit(const char* partial_msg)  { expect_check(__wrap_ods_fatal_exit, format, check_contains, partial_msg);  }
