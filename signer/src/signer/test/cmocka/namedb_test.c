@@ -119,6 +119,8 @@ void __wrap_print_message(const char* const format, ...) {
         WRAP_VARARGS_LOG("mock", format);
     }
 }
+
+int  __wrap_ods_log_get_level()                      { return 999; } // pass everything thru to us
 void __wrap_ods_log_deeebug(const char *format, ...) { WRAP_VARARGS_LOGN("deeebug", format); }
 void __wrap_ods_log_debug(const char *format, ...)   { WRAP_VARARGS_LOGN("debug", format); }
 void __wrap_ods_log_verbose(const char *format, ...) { WRAP_VARARGS_LOGN("verbose", format); }

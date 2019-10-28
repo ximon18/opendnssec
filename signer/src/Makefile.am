@@ -213,6 +213,7 @@ test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_log_info
 test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_log_warning
 test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_log_error
 test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_log_crit
+test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_log_get_level
 test_namedb_test_LDFLAGS+=  -Wl,--wrap=time_now
 test_namedb_test_LDFLAGS+=  -Wl,--wrap=hsm_check_context
 test_namedb_test_LDFLAGS+=  -Wl,--wrap=hsm_create_context
