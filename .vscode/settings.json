@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "key_data.h": "c",
+        "hsm_key.h": "c"
+    }
+}

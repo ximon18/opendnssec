@@ -28,6 +28,11 @@
  * The engine.
  *
  */
+#ifndef TESTING_WITH_MOCKS
+#  define mockable_static static
+#else
+#  define mockable_static // __attribute__((weak))
+#endif
 
 #include "config.h"
 #include "daemon/cfg.h"
@@ -68,7 +73,7 @@ static engine_type* engine = NULL;
  * Create engine.
  *
  */
-static engine_type*
+mockable_static engine_type*
 engine_create(void)
 {
     engine_type* engine;
@@ -102,6 +107,7 @@ engine_create(void)
     schedule_registertask(engine->taskq, TASK_CLASS_SIGNER, TASK_FORCEREAD, do_forcereadzone);
     schedule_registertask(engine->taskq, TASK_CLASS_SIGNER, TASK_SIGN, do_signzone);
     schedule_registertask(engine->taskq, TASK_CLASS_SIGNER, TASK_WRITE, do_writezone);
+fprintf(stderr, "XIMON: engine_create(): engine=%p, engine->taskq=%p\n", engine, engine->taskq);
     return engine;
 }
 
