@@ -1,3 +1,5 @@
+#include <time.h>
+
 /*
  * Copyright (c) 2009 NLNet Labs. All rights reserved.
  *
@@ -23,11 +25,11 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#ifndef TEST_MOCK_INPUTS_H
-#define TEST_MOCK_INPUTS_H
+#ifndef TEST_MOCK_CORE_SERVICES_H
+#define TEST_MOCK_CORE_SERVICES_H
 
 
-void set_mock_input_zone_file(const char* file_content);
+void set_mock_time_now_value(time_t t);
 
 
 #endif

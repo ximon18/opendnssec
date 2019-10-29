@@ -53,12 +53,24 @@
     __attribute__((constructor)) \
     static void register_e2e_test_ ## name() { \
         struct CMUnitTest test = cmocka_unit_test_setup_teardown(e2e_test_ ## name, e2e_setup, e2e_teardown); \
-        e2e_test_register(&test); \
+        register_test(&test); \
     } \
     void e2e_test_ ## name(e2e_test_state_type** cmocka_state) { \
         e2e_test_state_type *state = *cmocka_state;
 
 #define E2E_TEST_END \
+    }
+
+#define UNIT_TEST_BEGIN(name) \
+    void unit_test_ ## name(void **unused); \
+    __attribute__((constructor)) \
+    static void register_unit_test_ ## name() { \
+        struct CMUnitTest test = cmocka_unit_test(unit_test_ ## name); \
+        register_test(&test); \
+    } \
+    void unit_test_ ## name(void **unused) { \
+        
+#define UNIT_TEST_END \
     }
 
 

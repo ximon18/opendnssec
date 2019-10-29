@@ -69,7 +69,7 @@ static char* get_cmdlinearg(
 // ----------------------------------------------------------------------------
 static struct CMUnitTest *tests = NULL;
 static int num_tests = 0;
-void e2e_test_register(struct CMUnitTest *test)
+void register_test(struct CMUnitTest *test)
 {
     tests = realloc(tests, (++num_tests) * sizeof(struct CMUnitTest));
     memcpy(&tests[num_tests - 1], test, sizeof(struct CMUnitTest));

@@ -49,6 +49,11 @@ time_t __wrap_time_now(void)
     return mock();
 }
 
+void set_mock_time_now_value(time_t t)
+{
+    will_return(__wrap_time_now, t);
+}
+
 
 // Mock file access
 FILE* __wrap_ods_fopen(const char* file, const char* dir, const char* mode)
