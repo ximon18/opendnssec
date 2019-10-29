@@ -27,17 +27,50 @@
 #define TEST_MOCK_OUTPUTS_H
 
 
-#define ADAPTER_WRITE_ZONE_CHECKER(func_name, condition, log_fmt, log_value) \
-    static int func_name( \
+/* CMocka expect_check custom parameter checking function for checking the
+   state of the zone post signing (when adapter_write() is invoked by worker
+   task TASK_WRITE, the task that immediately and automatically follows task
+   TASK_SIGN).
+
+   Example:
+
+   DEFINE_SIGNED_ZONE_CHECK(expect_sig_count, zone->stats->sig_count, !=);
+
+   void some_test(...) {
+       expect_sig_count(14);
+       worker_perform_task(state->worker);
+   }
+
+   When worker_perform_task() invokes adapter_write for TASK_WRITE, post
+   TASK_SIGN, field zone->stats->sig_count will be compared to value 15 and the
+   test will fail if they are not "not equal".
+
+   On failure the log will contain:
+
+       test: log[crit] expect_sig_count: check zone->stats->sig_count != expected failed because 15 != 14
+*/
+
+#define DEFINE_SIGNED_ZONE_CHECK(func_name, test_field, test_op) \
+    int func_name ## _expect_check_custom_parameter_checking_func( \
         const LargestIntegralType value, const LargestIntegralType expected) \
     { \
         zone_type *zone = (zone_type *) value; \
-        if (condition) { \
-            return 1; \
-        } else { \
-            TEST_LOG("crit") log_fmt "\n", log_value); \
+        if (test_field test_op expected) { \
+            TEST_LOG("crit") #func_name ": check " \
+            #test_field " " #test_op " expected " \
+            "failed because %d != %d\n", test_field, expected); \
             return 0; \
+        } else { \
+            return 1; \
         } \
+    } \
+    void func_name(const LargestIntegralType expected) \
+    { \
+        expect_check( \
+            __wrap_adapter_write, \
+            zone, \
+            func_name ## _expect_check_custom_parameter_checking_func, \
+            expected); \
     }
 
 

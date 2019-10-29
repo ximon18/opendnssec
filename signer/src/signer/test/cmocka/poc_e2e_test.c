@@ -53,11 +53,7 @@ fred   IN  A      192.168.0.4
 
 
 
-ADAPTER_WRITE_ZONE_CHECKER(
-    check_sig_count,
-    zone->stats->sig_count == expected,
-    "Incorrect sig_count %d",
-    zone->stats->sig_count);
+DEFINE_SIGNED_ZONE_CHECK(expect_sig_count, zone->stats->sig_count, !=);
 
 
 void e2e_test_load_zone_file(e2e_test_state_type** cmocka_state)
@@ -74,7 +70,7 @@ void e2e_test_load_zone_file(e2e_test_state_type** cmocka_state)
     assert_int_equal(0, zone->stats->sig_count);
 
     // After signing expect: 15 RRSIGs and no errors
-    expect_check(__wrap_adapter_write, zone, check_sig_count, 15);
+    expect_sig_count(15);
 
     // Go!
     worker_perform_task(state->worker);
