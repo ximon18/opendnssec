@@ -197,47 +197,47 @@ ods_getconf_LDADD+=		@SSL_LIBS@ @LDNS_LIBS@ @XML2_LIBS@ @RT_LIBS@
 ods_getconf_LDADD+=		$(LIBCOMPAT)
 
 LIBCMOCKA = -lcmocka
-check_PROGRAMS = test/namedb_test
-TESTS = test/namedb_test
-test_namedb_test_SOURCES=   signer/test/cmocka/main.c $(SIGNER_NON_MAIN_SOURCES)
-test_namedb_test_SOURCES+=  signer/test/cmocka/test_framework.c
-test_namedb_test_SOURCES+=  signer/test/cmocka/mock_logging.c
-test_namedb_test_SOURCES+=  signer/test/cmocka/mock_core_services.c
-test_namedb_test_SOURCES+=  signer/test/cmocka/mock_hsm.c
-test_namedb_test_SOURCES+=  signer/test/cmocka/mock_inputs.c
-test_namedb_test_SOURCES+=  signer/test/cmocka/mock_outputs.c
-test_namedb_test_SOURCES+=  signer/test/cmocka/mock_worker.c
-test_namedb_test_SOURCES+=  signer/test/cmocka/poc_e2e_test.c
-test_namedb_test_SOURCES+=  cryptoki_compat/pkcs11.h
-test_namedb_test_CPPFLAGS=  $(AM_CPPFLAGS)
-test_namedb_test_CPPFLAGS+= -DTESTING_WITH_MOCKS
-test_namedb_test_CPPFLAGS+= -I$(top_srcdir)/signer/src/signer/test/cmocka
-test_namedb_test_CPPFLAGS+= -I$(top_srcdir)/libhsm/src/lib/cryptoki_compat
-test_namedb_test_LDADD=		$(ods_signer_LDADD) $(LIBCMOCKA)
+check_PROGRAMS = test/signer_e2e_tests
+TESTS = test/signer_e2e_tests
+test_signer_e2e_tests_SOURCES=   test/cmocka/framework/main.c $(SIGNER_NON_MAIN_SOURCES)
+test_signer_e2e_tests_SOURCES+=  test/cmocka/framework/test_framework.c
+test_signer_e2e_tests_SOURCES+=  test/cmocka/framework/mock_logging.c
+test_signer_e2e_tests_SOURCES+=  test/cmocka/framework/mock_core_services.c
+test_signer_e2e_tests_SOURCES+=  test/cmocka/framework/mock_hsm.c
+test_signer_e2e_tests_SOURCES+=  test/cmocka/framework/mock_inputs.c
+test_signer_e2e_tests_SOURCES+=  test/cmocka/framework/mock_outputs.c
+test_signer_e2e_tests_SOURCES+=  test/cmocka/framework/mock_worker.c
+test_signer_e2e_tests_SOURCES+=  test/cmocka/tests/poc_e2e_test.c
+test_signer_e2e_tests_SOURCES+=  cryptoki_compat/pkcs11.h
+test_signer_e2e_tests_CPPFLAGS=  $(AM_CPPFLAGS)
+test_signer_e2e_tests_CPPFLAGS+= -DTESTING_WITH_MOCKS
+test_signer_e2e_tests_CPPFLAGS+= -I$(top_srcdir)/signer/src/test/cmocka/framework
+test_signer_e2e_tests_CPPFLAGS+= -I$(top_srcdir)/libhsm/src/lib/cryptoki_compat
+test_signer_e2e_tests_LDADD=     $(ods_signer_LDADD) $(LIBCMOCKA)
 # Override functionality that must be handled differently or disabled when testing
-test_namedb_test_LDFLAGS=	-Wl,--wrap=ods_fatal_exit
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_log_verbose
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_log_debug
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_log_deeebug
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_log_info
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_log_warning
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_log_error
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_log_crit
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_log_get_level
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=time_now
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=hsm_check_context
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=hsm_create_context
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=hsm_destroy_context
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=hsm_get_dnskey
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=hsm_get_error
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=keylookup
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=pthread_mutex_lock
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=pthread_mutex_unlock
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=adapter_write
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=zone_backup2
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_fopen
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_fclose
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=ods_fgetc
+test_signer_e2e_tests_LDFLAGS=   -Wl,--wrap=ods_fatal_exit
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=ods_log_verbose
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=ods_log_debug
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=ods_log_deeebug
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=ods_log_info
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=ods_log_warning
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=ods_log_error
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=ods_log_crit
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=ods_log_get_level
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=time_now
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=hsm_check_context
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=hsm_create_context
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=hsm_destroy_context
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=hsm_get_dnskey
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=hsm_get_error
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=keylookup
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=pthread_mutex_lock
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=pthread_mutex_unlock
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=adapter_write
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=zone_backup2
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=ods_fopen
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=ods_fclose
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=ods_fgetc
 # The next one is a cmocka function that is too noisy and offers no way to
 # silence it, but by wrapping it we can silence it.
-test_namedb_test_LDFLAGS+=  -Wl,--wrap=print_message
+test_signer_e2e_tests_LDFLAGS+=  -Wl,--wrap=print_message

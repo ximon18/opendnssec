@@ -40,9 +40,31 @@
 #include "mock_inputs.h"
 
 
-#define MOCK_ZONE_NAME "mockzone."
+// ----------------------------------------------------------------------------
+// Macros to wrap a test definition so that:
+//   - it is clear which functions are tests.
+//   - tests register themselves, there is no need to modify the test main
+//     function to register them manually.
+//   - if needed later post-test logic can be added without modifying the
+//     original test code.
+// ----------------------------------------------------------------------------
+#define E2E_TEST_BEGIN(name) \
+    void e2e_test_ ## name(e2e_test_state_type** cmocka_state); \
+    __attribute__((constructor)) \
+    static void register_e2e_test_ ## name() { \
+        struct CMUnitTest test = cmocka_unit_test_setup_teardown(e2e_test_ ## name, e2e_setup, e2e_teardown); \
+        e2e_test_register(&test); \
+    } \
+    void e2e_test_ ## name(e2e_test_state_type** cmocka_state) { \
+        e2e_test_state_type *state = *cmocka_state;
+
+#define E2E_TEST_END \
+    }
 
 
+// ----------------------------------------------------------------------------
+// Types used to pass state into tests.
+// ----------------------------------------------------------------------------
 typedef struct e2e_test_state_struct {
     worker_type *worker;
     hsm_ctx_t   *hsm_ctx;
@@ -57,6 +79,7 @@ typedef struct test_keys_struct {
 } test_keys_type;
 
 
+#define MOCK_ZONE_NAME           "mockzone."
 #define MOCK_ASSERT(expression)  mock_assert((int)(expression), #expression, __FILE__, __LINE__);
 #define MOCK_POINTER             (void*)0xDEADBEEF
 

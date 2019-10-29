@@ -27,9 +27,11 @@
 
 
 #include "test_framework.h"
-#include "poc_e2e_test.h"
 
 
+// ----------------------------------------------------------------------------
+// command line helper functions:
+// ----------------------------------------------------------------------------
 #define is_cmdlineflag_set(long_needle, short_needle) \
     (get_cmdlinearg(argc, argv, long_needle, false, NULL) ? true : false) || \
     (get_cmdlinearg(argc, argv, short_needle, false, NULL) ? true : false)
@@ -62,11 +64,21 @@ static char* get_cmdlinearg(
 }
 
 
-static struct CMUnitTest tests[] = {
-    cmocka_unit_test_setup_teardown(e2e_test_load_zone_file, e2e_setup, e2e_teardown),
-};
-static const num_tests = (sizeof(tests)/sizeof(struct CMUnitTest));
+// ----------------------------------------------------------------------------
+// e2e test registration helper functions:
+// ----------------------------------------------------------------------------
+static struct CMUnitTest *tests = NULL;
+static int num_tests = 0;
+void e2e_test_register(struct CMUnitTest *test)
+{
+    tests = realloc(tests, (++num_tests) * sizeof(struct CMUnitTest));
+    memcpy(&tests[num_tests - 1], test, sizeof(struct CMUnitTest));
+}
 
+
+// ----------------------------------------------------------------------------
+// main:
+// ----------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
     if (is_cmdlineflag_set("--help", "-h")) {
@@ -86,5 +98,5 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    return cmocka_run_group_tests(tests, NULL, NULL);
+    return _cmocka_run_group_tests("tests", tests, num_tests, NULL, NULL);
 }

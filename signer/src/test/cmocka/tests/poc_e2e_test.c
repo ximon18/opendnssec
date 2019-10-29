@@ -52,14 +52,9 @@ fred   IN  A      192.168.0.4
 )";
 
 
-
 DEFINE_SIGNED_ZONE_CHECK(expect_sig_count, zone->stats->sig_count, !=);
 
-
-void e2e_test_load_zone_file(e2e_test_state_type** cmocka_state)
-{
-    e2e_test_state_type *state = *cmocka_state;
-
+E2E_TEST_BEGIN(load_zone_file)
     // Given an unsigned input zone
     e2e_configure_mocks(state, TASK_READ, test_zone);
     zone_type *zone = state->worker->task->zone;
@@ -74,4 +69,4 @@ void e2e_test_load_zone_file(e2e_test_state_type** cmocka_state)
 
     // Go!
     worker_perform_task(state->worker);
-}
+E2E_TEST_END
