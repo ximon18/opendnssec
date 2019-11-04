@@ -24,6 +24,12 @@
  *
  */
 
+#ifndef TESTING_WITH_MOCKS
+#  define mockable_static static
+#else
+#  define mockable_static __attribute__((weak))
+#endif
+
 #include <time.h> /* time() */
 
 #include "daemon/engine.h"
@@ -45,7 +51,7 @@
  * Queue RRset for signing.
  *
  */
-static void
+mockable_static void
 worker_queue_rrset(struct worker_context* context, fifoq_type* q, rrset_type* rrset, long* nsubtasks)
 {
     ods_status status = ODS_STATUS_UNCHANGED;
