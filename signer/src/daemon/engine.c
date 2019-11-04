@@ -107,7 +107,6 @@ engine_create(void)
     schedule_registertask(engine->taskq, TASK_CLASS_SIGNER, TASK_FORCEREAD, do_forcereadzone);
     schedule_registertask(engine->taskq, TASK_CLASS_SIGNER, TASK_SIGN, do_signzone);
     schedule_registertask(engine->taskq, TASK_CLASS_SIGNER, TASK_WRITE, do_writezone);
-fprintf(stderr, "XIMON: engine_create(): engine=%p, engine->taskq=%p\n", engine, engine->taskq);
     return engine;
 }
 
