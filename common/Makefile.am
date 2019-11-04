@@ -20,6 +20,7 @@ libcompat_a_SOURCES = \
 	util.c util.h \
 	datastructure.c datastructure.h \
 	scheduler/schedule.c scheduler/schedule.h \
+    scheduler/schedule_extra.c \
 	scheduler/task.c scheduler/task.h \
 	scheduler/fifoq.c scheduler/fifoq.h \
 	scheduler/worker.c scheduler/worker.h \

@@ -92,6 +92,7 @@ void schedule_cleanup(schedule_type* schedule);
 
 void schedule_registertask(schedule_type* schedule, task_id class, task_id type, time_t (*callback)(task_type* task, char const *owner, void *userdata, void *context));
 
+struct schedule_handler* schedule_findregisteredhandler(schedule_type* schedule, task_id type);
 
 /**
  * purge schedule. All tasks will be thrashed.
