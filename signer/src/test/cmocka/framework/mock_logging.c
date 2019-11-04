@@ -84,7 +84,7 @@ void set_filtered_tests(const char *filter)
 #define WRAP_VARARGS_LOG_WITH_EOL(level, format, eol) \
     if (log_level_enabled(level)) { \
         va_list args; \
-        va_start (args, format); \
+        va_start(args, format); \
         TEST_LOG_NOCHECK(level)); \
         vfprintf(stderr, format, args); \
         fprintf(stderr, eol); \
