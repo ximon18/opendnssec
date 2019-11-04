@@ -40,6 +40,10 @@ void configure_mock_hsm(const e2e_test_state_type* state)
     will_return_always(__wrap_hsm_create_context, state->hsm_ctx);
 }
 
+
+// ----------------------------------------------------------------------------
+// Plain mocks.
+// ----------------------------------------------------------------------------
 CK_RV mock_C_DigestInit(unsigned long session, CK_MECHANISM_PTR m) {
     MOCK_ANNOUNCE();
     return CKR_OK;
@@ -68,41 +72,46 @@ CK_RV mock_C_Sign(unsigned long session, unsigned char* data,
 
 
 // ----------------------------------------------------------------------------
-// Weak implementation overrides.
-// These replace existing definitions whose implementation marked the method
-// with __attribute__((weak)) thereby allowing us to override the definition.
+// monkey patches:
+// these require compilation with -Wl,--wrap=ods_log_debug,--wrap=xxx etc to 
+// cause these wrapper implementations to replace the originals.
 // ----------------------------------------------------------------------------
-const libhsm_key_t* keylookup(hsm_ctx_t* ctx, const char* locator) {
+const libhsm_key_t* __wrap_keycache_lookup(hsm_ctx_t* ctx, const char* locator) {
     MOCK_ANNOUNCE();
     test_keys_type *keys = e2e_get_mock_keys();
-    for (int i = 0; i < e2e_get_mock_key_count; i++) {
+    for (int i = 0; i < e2e_get_mock_key_count(); i++) {
         if (0 == strcmp(keys[i].locator, locator)) {
             return keys[i].hsm_key;
         }
     }
     fail_msg("No key with locator %s found\n", locator);
 }
-
-
-// ----------------------------------------------------------------------------
-// monkey patches:
-// these require compilation with -Wl,--wrap=ods_log_debug,--wrap=xxx etc to 
-// cause these wrapper implementations to replace the originals.
-// ----------------------------------------------------------------------------
-hsm_ctx_t * __wrap_hsm_create_context() {
-    MOCK_ANNOUNCE();
-    return mock();
-}
-int __wrap_hsm_check_context() {
+int __wrap_hsm_open2(hsm_repository_t* rlist, char *(pin_callback)(unsigned int, const char *, unsigned int))
+{
     MOCK_ANNOUNCE();
     return HSM_OK;
 }
-void __wrap_hsm_destroy_context(hsm_ctx_t *ctx) {
+void __wrap_hsm_close()
+{
+    MOCK_ANNOUNCE();
+}
+hsm_ctx_t * __wrap_hsm_create_context()
+{
+    MOCK_ANNOUNCE();
+    return mock();
+}
+int __wrap_hsm_check_context()
+{
+    MOCK_ANNOUNCE();
+    return HSM_OK;
+}
+void __wrap_hsm_destroy_context(hsm_ctx_t *ctx)
+{
     MOCK_ANNOUNCE();
     // Destruction is handled by the test teardown function.
 }
-ldns_rr * __wrap_hsm_get_dnskey(
-    hsm_ctx_t *ctx, const libhsm_key_t *key, const hsm_sign_params_t *sign_params) {
+ldns_rr * __wrap_hsm_get_dnskey(hsm_ctx_t *ctx, const libhsm_key_t *key, const hsm_sign_params_t *sign_params)
+{
     MOCK_ANNOUNCE();
     test_keys_type *keys = e2e_get_mock_keys();
 
@@ -115,7 +124,10 @@ ldns_rr * __wrap_hsm_get_dnskey(
         return keys[mock_key_idx].ldns_rr;
     }
 }
-char * __wrap_hsm_get_error(hsm_ctx_t *gctx) { return NULL; }
+char * __wrap_hsm_get_error(hsm_ctx_t *gctx)
+{
+    return NULL;
+}
 
 
 hsm_ctx_t *setup_mock_hsm()

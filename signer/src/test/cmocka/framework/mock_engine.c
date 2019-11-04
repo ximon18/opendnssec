@@ -4,8 +4,8 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- *    notice, this list
-  of conditions and the following disclaimer.
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -23,84 +23,38 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#include <time.h>
-#include <stdio.h>
-
-
 #include "test_framework.h"
+#include "daemon/engine.h"
 
 
-void set_mock_time_now_value(time_t t)
+void setup_mock_engine(e2e_test_state_type *state)
 {
-    will_return(__wrap_time_now, t);
+    engine_start(NULL, 0, 0, 0);
 }
-
 
 // ----------------------------------------------------------------------------
 // monkey patches:
 // these require compilation with -Wl,--wrap=ods_log_debug,--wrap=xxx etc to 
 // cause these wrapper implementations to replace the originals.
 // ----------------------------------------------------------------------------
-
-int __wrap_pthread_cond_init (pthread_cond_t *__restrict __cond,
-			      const pthread_condattr_t *__restrict __cond_attr)
-{
-    return 0;
-}
-int __wrap_pthread_mutex_init (pthread_mutex_t *__mutex,
-			       const pthread_mutexattr_t *__mutexattr)
-{
-    return 0;
-}
-int __wrap_pthread_mutex_lock (pthread_mutex_t *__mutex)
-{
-    return 0;
-}
-int __wrap_pthread_mutex_unlock (pthread_mutex_t *__mutex)
-{
-    return 0;
-}
-time_t __wrap_time_now(void)
-{
-    MOCK_ANNOUNCE();
-    return mock();
-}
-FILE* __wrap_ods_fopen(const char* file, const char* dir, const char* mode)
-{
-    MOCK_ANNOUNCE();
-    return MOCK_POINTER; // override fgetc and return data based on the ptr returned here?
-}
-void __wrap_ods_fclose(FILE* fd)
-{
-    MOCK_ANNOUNCE();
-    // nothing to do
-}
-int __wrap_ods_fgetc(FILE* fd, unsigned int* line_nr)
-{
-    if (fd == MOCK_POINTER) {
-        int c = mock();
-        if ((char)c == '\n') (*line_nr)++;
-        return c;
-    } else {
-        fail();
-    }
-}
-ods_status __wrap_privdrop(const char *username, const char *groupname, const char *newroot, uid_t* puid, gid_t* pgid)
-{
-    MOCK_ANNOUNCE();
-    return ODS_STATUS_OK;
-}
-void __wrap_ods_chown(const char* file, uid_t uid, gid_t gid, int getdir)
-{
-    MOCK_ANNOUNCE();
-}
-int __wrap_util_write_pidfile(const char* pidfile, pid_t pid)
+int __wrap_janitor_thread_create(janitor_thread_t* thread, janitor_threadclass_t threadclass, janitor_runfn_t func, void*data)
 {
     MOCK_ANNOUNCE();
     return 0;
 }
-ods_status __wrap_parse_file_check(const char* cfgfile, const char* rngfile)
+void __wrap_cmdhandler_cleanup(cmdhandler_type* cmdhandler)
 {
-    MOCK_ANNOUNCE()
-    return ODS_STATUS_OK;
+    MOCK_ANNOUNCE();
+}
+void __wrap_dnshandler_cleanup(dnshandler_type* dnshandler)
+{
+    MOCK_ANNOUNCE();
+}
+void __wrap_xfrhandler_cleanup(xfrhandler_type* xfrhandler)
+{
+    MOCK_ANNOUNCE();
+}
+void __wrap_engine_config_cleanup(engineconfig_type* config)
+{
+    MOCK_ANNOUNCE();
 }

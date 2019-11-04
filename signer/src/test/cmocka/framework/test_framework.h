@@ -97,6 +97,7 @@ typedef struct test_keys_struct {
 #define MOCK_ZONE_NAME           "mockzone."
 #define MOCK_ASSERT(expression)  mock_assert((int)(expression), #expression, __FILE__, __LINE__);
 #define MOCK_POINTER             (void*)0xDEADBEEF
+#define TASK_STOP                NULL
 
 
 test_keys_type* e2e_get_mock_keys(void);
@@ -105,6 +106,7 @@ void            e2e_init_mock_key(const char *locator, const zone_type *zone, bo
 int             e2e_setup(void** state);
 int             e2e_teardown(e2e_test_state_type** state);
 void            e2e_configure_mocks(const e2e_test_state_type* state, const task_id task_id, const char *input_zone);
+void            e2e_go(const e2e_test_state_type* state, ...);
 
 
 #endif

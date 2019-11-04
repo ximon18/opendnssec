@@ -78,6 +78,7 @@ test_signer_tests_SOURCES=   test/cmocka/framework/main.c $(SIGNER_NON_MAIN_SOUR
 test_signer_tests_SOURCES+=  test/cmocka/framework/test_framework.c
 test_signer_tests_SOURCES+=  test/cmocka/framework/mock_logging.c
 test_signer_tests_SOURCES+=  test/cmocka/framework/mock_core_services.c
+test_signer_tests_SOURCES+=  test/cmocka/framework/mock_engine.c
 test_signer_tests_SOURCES+=  test/cmocka/framework/mock_hsm.c
 test_signer_tests_SOURCES+=  test/cmocka/framework/mock_inputs.c
 test_signer_tests_SOURCES+=  test/cmocka/framework/mock_outputs.c
@@ -91,7 +92,13 @@ test_signer_tests_CPPFLAGS+= -I$(top_srcdir)/signer/src/test/cmocka/framework
 test_signer_tests_CPPFLAGS+= -I$(top_srcdir)/libhsm/src/lib/cryptoki_compat
 test_signer_tests_LDADD=     $(ods_signerd_LDADD) $(LIBCMOCKA)
 # Override functionality that must be handled differently or disabled when testing
-test_signer_tests_LDFLAGS=   -Wl,--wrap=ods_fatal_exit
+test_signer_tests_LDFLAGS=   -Wl,--wrap=privdrop
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=pthread_mutex_init
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=pthread_mutex_lock
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=pthread_mutex_unlock
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=pthread_cond_init
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=time_now
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=ods_fatal_exit
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=ods_log_verbose
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=ods_log_debug
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=ods_log_deeebug
@@ -100,22 +107,35 @@ test_signer_tests_LDFLAGS+=  -Wl,--wrap=ods_log_warning
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=ods_log_error
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=ods_log_crit
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=ods_log_get_level
-test_signer_tests_LDFLAGS+=  -Wl,--wrap=time_now
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=ods_fopen
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=ods_fclose
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=ods_fgetc
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=ods_chown
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=util_write_pidfile
+
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=hsm_open2
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=hsm_close
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=hsm_check_context
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=hsm_create_context
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=hsm_destroy_context
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=hsm_get_dnskey
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=hsm_get_error
-test_signer_tests_LDFLAGS+=  -Wl,--wrap=keylookup
-test_signer_tests_LDFLAGS+=  -Wl,--wrap=pthread_mutex_lock
-test_signer_tests_LDFLAGS+=  -Wl,--wrap=pthread_mutex_unlock
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=hsm_attach
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=keycache_lookup
+
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=adapter_write
-test_signer_tests_LDFLAGS+=  -Wl,--wrap=zone_backup2
-test_signer_tests_LDFLAGS+=  -Wl,--wrap=ods_fopen
-test_signer_tests_LDFLAGS+=  -Wl,--wrap=ods_fclose
-test_signer_tests_LDFLAGS+=  -Wl,--wrap=ods_fgetc
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=janitor_thread_create
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=schedule_task
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=schedule_pop_task
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=schedule_unschedule_task
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=task_perform
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=zone_backup2
+
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=cmdhandler_cleanup
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=dnshandler_cleanup
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=xfrhandler_cleanup
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=engine_config_cleanup
+
 # The next one is a cmocka function that is too noisy and offers no way to
 # silence it, but by wrapping it we can silence it.
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=print_message

@@ -57,7 +57,7 @@ DEFINE_SIGNED_ZONE_CHECK(expect_sig_count, zone->stats->sig_count, !=);
 E2E_TEST_BEGIN(load_zone_file)
     // Given an unsigned input zone
     e2e_configure_mocks(state, TASK_READ, test_zone);
-    // zone_type *zone = state->worker->task->zone;
+
     zone_type *zone = state->zone;
     zone->signconf->soa_serial = strdup("datecounter");
     zone->signconf->last_modified = 1;
@@ -69,5 +69,5 @@ E2E_TEST_BEGIN(load_zone_file)
     expect_sig_count(15);
 
     // Go!
-    task_perform(state->context->engine->taskq, state->task, state->context);
+    e2e_go(state, TASK_READ, TASK_SIGN, TASK_WRITE, TASK_STOP);
 E2E_TEST_END
