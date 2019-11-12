@@ -609,22 +609,16 @@ schedule_registertask(schedule_type* schedule, task_id taskclass, task_id taskty
     }
 }
 
-void
-schedule_scheduletask(schedule_type* schedule, task_id type, const char* owner, void* userdata, pthread_mutex_t* resource, time_t when)
+struct schedule_handler* schedule_findregisteredhandler(schedule_type* schedule, task_id type)
 {
     int i;
-    task_type* task;
     struct schedule_handler* handler = NULL;
     for (i = 0; i < schedule->nhandlers; i++) {
         if (schedule->handlers[i].type == type) {
             handler = &schedule->handlers[i];
         }
     }
-    if (handler) {
-        task = task_create(strdup(owner), handler->class, type, handler->callback, userdata, NULL, when);
-        task->lock = resource;
-        schedule_task(schedule, task, 0, 0);
-    }
+    return handler;
 }
 
 void

@@ -28,6 +28,11 @@
  * The engine.
  *
  */
+#ifndef TESTING_WITH_MOCKS
+#  define mockable_static static
+#else
+#  define mockable_static // __attribute__((weak))
+#endif
 
 #include "config.h"
 #include "cfg.h"
@@ -68,7 +73,7 @@ static const char* engine_str = "engine";
  * Create engine.
  *
  */
-engine_type*
+mockable_static engine_type*
 engine_create(void)
 {
     engine_type* engine;

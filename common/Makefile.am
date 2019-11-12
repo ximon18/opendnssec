@@ -20,6 +20,7 @@ libcompat_a_SOURCES = \
 	str.c str.h strlcat.c strlcpy.c \
 	util.c util.h \
 	scheduler/schedule.c scheduler/schedule.h \
+    scheduler/schedule_extra.c \
 	scheduler/task.c scheduler/task.h \
 	scheduler/fifoq.c scheduler/fifoq.h \
 	scheduler/worker.c scheduler/worker.h \

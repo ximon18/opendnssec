@@ -24,6 +24,12 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef TESTING_WITH_MOCKS
+#  define mockable_static static
+#else
+#  define mockable_static __attribute__((weak))
+#endif
+
 #include <time.h>
 #include <sys/types.h>
 #include <fcntl.h>
@@ -53,7 +59,7 @@ static logger_cls_type names_logsigning = LOGGER_INITIALIZE("signing");
  * Queue RRset for signing.
  *
  */
-static void
+mockable_static void
 worker_queue_domain(struct worker_context* context, fifoq_type* q, void* item, long* nsubtasks)
 {
     ods_status status = ODS_STATUS_UNCHANGED;
