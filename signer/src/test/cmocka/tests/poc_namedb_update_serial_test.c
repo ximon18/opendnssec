@@ -147,6 +147,7 @@ UNIT_TEST_BEGIN(soa_serial_counter)
     assert_int_equal(db.intserial, inbound_serial + 1);
 UNIT_TEST_END
 
+
 UNIT_TEST_BEGIN(soa_serial_keep_okay)
     namedb_type db = namedb_update_serial_test_common();
 
@@ -166,6 +167,7 @@ UNIT_TEST_BEGIN(soa_serial_keep_okay)
     assert_int_equal(db.intserial, inbound_serial);
 UNIT_TEST_END
 
+
 UNIT_TEST_BEGIN(soa_serial_keep_unusable)
     namedb_type db = namedb_update_serial_test_common();
 
@@ -184,6 +186,7 @@ UNIT_TEST_BEGIN(soa_serial_keep_unusable)
         ODS_STATUS_CONFLICT_ERR,
         namedb_update_serial(&db, "azone", "keep", inbound_serial));
 UNIT_TEST_END
+
 
 UNIT_TEST_BEGIN(soa_serial_unixtime_gt_now)
     namedb_type db = namedb_update_serial_test_common();
@@ -208,6 +211,7 @@ UNIT_TEST_BEGIN(soa_serial_unixtime_gt_now)
     assert_int_equal(db.intserial, inbound_serial + 1);
 UNIT_TEST_END
 
+
 UNIT_TEST_BEGIN(soa_serial_unixtime_eq_now)
     namedb_type db = namedb_update_serial_test_common();
 
@@ -231,6 +235,7 @@ UNIT_TEST_BEGIN(soa_serial_unixtime_eq_now)
     assert_int_equal(db.intserial, inbound_serial + 1);
 UNIT_TEST_END
 
+
 UNIT_TEST_BEGIN(soa_serial_unixtime_lt_now)
     namedb_type db = namedb_update_serial_test_common();
 
@@ -253,6 +258,7 @@ UNIT_TEST_BEGIN(soa_serial_unixtime_lt_now)
     assert_int_equal(db.intserial, MOCK_UNIXTIME_NOW);
 UNIT_TEST_END
 
+
 UNIT_TEST_BEGIN(serial_gt)
     // loosely based on RFC 1982 section "5.2. A slightly larger example".
     test_one_serial_gt(1, 0);
@@ -265,6 +271,7 @@ UNIT_TEST_BEGIN(serial_gt)
     test_one_serial_gt(0, TWO_POW_31-55);
     test_one_serial_gt(44, TWO_POW_31-55);
 UNIT_TEST_END
+
 
 UNIT_TEST_BEGIN(serial_gt_incomparable)
     // According to RFC-1982 sections "3.2. Comparison", section "5.1. A
