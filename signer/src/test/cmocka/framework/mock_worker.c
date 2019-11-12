@@ -37,74 +37,100 @@ void setup_mock_worker(e2e_test_state_type *state)
 {
     // prepare an "engine"
     state->context = calloc(1, sizeof(struct worker_context));
-    fprintf(stderr, "XIMON1: %p\n", state);
-    fprintf(stderr, "XIMON1: %p\n", state->context);
 
     // build a minimal zone
-    zone_type* zone = zone_create(strdup(MOCK_ZONE_NAME), LDNS_RR_CLASS_IN);
-    zone->signconf = signconf_create();
+    // create a tmeporary copy of the zone name because zone_create edits it
+    // _before_ it copies it !!!
+    char* tmp_zone_name = strdup(MOCK_ZONE_NAME);
+    zone_type* zone = zone_create(tmp_zone_name, LDNS_RR_CLASS_IN);
+    free(tmp_zone_name);
+
     zone->signconf->sig_resign_interval = duration_create_from_string("P1D");
     zone->signconf->keys = keylist_create(zone->signconf);
     zone->signconf->nsec_type = LDNS_RR_TYPE_NSEC;
     zone->adoutbound = adapter_create("MOCK_CONFIG_STR", -1, 0);
     state->zone = zone;
 
-    // // create a ZSK and KSK for signing
-    // e2e_init_mock_key("MOCK_KSK_LOCATOR", zone, true, false);
-    // e2e_init_mock_key("MOCK_ZSK_LOCATOR", zone, false, true);
-
-    // return worker;
+    // create a ZSK and KSK for signing
+    e2e_prepare_for_keys(2);
+    e2e_init_mock_key("MOCK_KSK_LOCATOR", zone, true, false);
+    e2e_init_mock_key("MOCK_ZSK_LOCATOR", zone, false, true);
 }
 
 void teardown_mock_worker(e2e_test_state_type *state)
 {
     assert_non_null(state);
-
-    zone_type *zone = state->zone;
-    if (zone->signconf->soa_serial) free(zone->signconf->soa_serial);
-    if (zone->adinbound) {
-        if (zone->adinbound->configstr) free(zone->adinbound->configstr);
-        free(zone->adinbound);
-    }
-
+    zone_cleanup(state->zone);
+    worker_cleanup(state->context->worker);
+    engine_cleanup(state->context->engine);
     free(state->context);
+}
+
+// WHY does it cause a segfault if we call the copy of this function that is
+// in signer/daemon/engine.c???
+engine_type*
+cloned_engine_create(void)
+{
+    engine_type* engine;
+    CHECKALLOC(engine = (engine_type*) malloc(sizeof(engine_type)));
+    engine->config = NULL;
+    engine->workers = NULL;
+    engine->cmdhandler = NULL;
+    engine->dnshandler = NULL;
+    engine->xfrhandler = NULL;
+    engine->taskq = NULL;
+    engine->pid = -1;
+    engine->uid = -1;
+    engine->gid = -1;
+    engine->daemonize = 0;
+    engine->need_to_exit = 0;
+    engine->need_to_reload = 0;
+    pthread_mutex_init(&engine->signal_lock, NULL);
+    pthread_cond_init(&engine->signal_cond, NULL);
+    engine->zonelist = zonelist_create();
+    if (!engine->zonelist) {
+        engine_cleanup(engine);
+        return NULL;
+    }
+    if (!(engine->taskq = schedule_create())) {
+        engine_cleanup(engine);
+        return NULL;
+    }
+    schedule_registertask(engine->taskq, TASK_CLASS_SIGNER, TASK_SIGNCONF, do_readsignconf);
+    schedule_registertask(engine->taskq, TASK_CLASS_SIGNER, TASK_FORCESIGNCONF, do_forcereadsignconf);
+    schedule_registertask(engine->taskq, TASK_CLASS_SIGNER, TASK_READ, do_readzone);
+    schedule_registertask(engine->taskq, TASK_CLASS_SIGNER, TASK_FORCEREAD, do_forcereadzone);
+    schedule_registertask(engine->taskq, TASK_CLASS_SIGNER, TASK_SIGN, do_signzone);
+    schedule_registertask(engine->taskq, TASK_CLASS_SIGNER, TASK_WRITE, do_writezone);
+    return engine;
 }
 
 void configure_mock_worker(
     e2e_test_state_type* state,
     const char *input_zone)
 {
-    // will_return_always(worker_queue_rrset, state->hsm_ctx);
-    expect_function_call_any(mock_C_Sign);
-    expect_function_call(__wrap_adapter_write);
-
+    will_return_always(worker_queue_rrset, state->hsm_ctx);
     if (input_zone)
     {
         zone_type *zone = state->zone;
-        zone->signconf_filename = "UNUSED MOCK SIGNCONF FILENAME";
-        zone->adinbound = calloc(1, sizeof(adapter_type));
-        zone->adinbound->type = ADAPTER_FILE;
-        zone->adinbound->configstr = strdup("UNUSED MOCK ZONE_FILENAME");
+        zone->signconf_filename = strdup("UNUSED MOCK SIGNCONF FILENAME");
+        zone->adinbound = adapter_create("UNUSED MOCK ZONE_FILENAME", ADAPTER_FILE, 1);
         set_mock_input_zone_file(input_zone);
-        // state->task = task_create(
-        //     strdup(state->zone->name),
-        //     TASK_CLASS_SIGNER,
-        //     TASK_READ,
-        //     do_readzone,
-        //     state->zone, NULL, 0
-        // );
-        engine_type* engine = engine_create();
-        state->context->engine = engine;
-        fprintf(stderr, "XIMON2: state=%p\n", state);
-        fprintf(stderr, "XIMON2: context=%p\n", state->context);
-        fprintf(stderr, "XIMON2: engine1=%p\n", engine);
-        fprintf(stderr, "XIMON2: engine2=%p\n", state->context->engine);
-        fprintf(stderr, "XIMON2: taskq=%p\n", state->context->engine->taskq);
+
+        state->context->engine = cloned_engine_create(); // engine_create();
+
+        state->context->worker = worker_create(strdup("MOCK_WORKER"),
+            state->context->engine->taskq);
+        state->context->worker->context = state->context;
+        state->context->engine->config = calloc(1, sizeof(engineconfig_type));
+        state->context->engine->config->num_signer_threads = 0;
+        state->context->engine->config->num_worker_threads = 0;
+
         schedule_scheduletask(
             state->context->engine->taskq, TASK_READ, zone->name, zone, &zone->zone_lock, schedule_PROMPTLY);
-        will_return_always(__wrap_schedule_task, state->context);
     }
 }
+
 
 // ----------------------------------------------------------------------------
 // Weak implementation overrides.
@@ -112,15 +138,16 @@ void configure_mock_worker(
 // with __attribute__((weak)) thereby allowing us to override the definition.
 // ----------------------------------------------------------------------------
 
-// // Mock worker task queuing and drudger thread
-// void worker_queue_rrset(worker_type* worker, fifoq_type* q, rrset_type* rrset) {
-//     // emulate a drudger thread picking up a queued task, don't actually queue
-//     // anything instead just execute the drudger action that is performed on
-//     // dequeued tasks, i.e. sign an rrset.
-//     MOCK_ANNOUNCE();
-//     hsm_ctx_t *ctx = mock();
-//     assert_int_equal(ODS_STATUS_OK, rrset_sign(ctx, rrset, time_now()));
-// }
+// Mock worker task queuing and drudger thread
+void worker_queue_rrset(worker_type* worker, fifoq_type* q, rrset_type* rrset)
+{
+    // emulate a drudger thread picking up a queued task, don't actually queue
+    // anything instead just execute the drudger action that is performed on
+    // dequeued tasks, i.e. sign an rrset.
+    MOCK_ANNOUNCE();
+    hsm_ctx_t *ctx = mock();
+    assert_int_equal(ODS_STATUS_OK, rrset_sign(ctx, rrset, time_now()));
+}
 
 
 // ----------------------------------------------------------------------------
@@ -128,14 +155,42 @@ void configure_mock_worker(
 // these require compilation with -Wl,--wrap=ods_log_debug,--wrap=xxx etc to 
 // cause these wrapper implementations to replace the originals.
 // ----------------------------------------------------------------------------
-ods_status
-__wrap_schedule_task(schedule_type* schedule, task_type* task, int replace, int log) {
-    MOCK_ANNOUNCE();
-    // just invoke it directly
-    task_perform(schedule, task, mock());
+ods_status __wrap_schedule_task(schedule_type* schedule, task_type* task, int replace, int log)
+{
+    TEST_LOG("mock") "mock: %s() owner=%s class=%s type=%s\n", __func__, task->owner, task->class, task->type);
+    will_return(__wrap_schedule_pop_task, task);
+    return ODS_STATUS_OK;
 }
 
-void __wrap_schedule_unscheduletask(schedule_type* schedule, task_id type, const char* owner) {
+task_type* __wrap_schedule_pop_task(schedule_type* schedule)
+{
+    MOCK_ANNOUNCE();
+    return mock();
+}
+
+void __wrap_schedule_unscheduletask(schedule_type* schedule, task_id type, const char* owner)
+{
     MOCK_ANNOUNCE();
 }
 
+void __wrap_task_perform(schedule_type* scheduler, task_type* task, void* context)
+{
+    MOCK_ANNOUNCE();
+    task_id expected_task_type = mock();
+    if (expected_task_type == TASK_STOP) {
+        TEST_LOG("mock") "Test end scheduled, ignoring scheduled task %s.\n", task->type);
+        worker_type* worker = mock();
+        worker->need_to_exit = 1;
+        return NULL;
+    }
+    assert_string_equal(expected_task_type, task->type);
+
+    if (0 == strcmp(task->type, TASK_SIGN)) {
+        expect_function_call_any(mock_C_Sign);
+    } else if (0 == strcmp(task->type, TASK_WRITE)) {
+        expect_function_call(__wrap_adapter_write);
+    }
+
+    TEST_LOG("mock") "Performing task %s.\n", task->type);
+    __real_task_perform(scheduler, task, context);
+}

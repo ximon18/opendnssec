@@ -29,6 +29,7 @@
 
 
 #include <pkcs11.h>
+#include <stdarg.h>
 
 
 #include "daemon/engine.h"
@@ -37,6 +38,11 @@
 static test_keys_type *e2e_mock_keys      = NULL;
 static int             e2e_mock_key_count = 0;
 
+
+void e2e_prepare_for_keys(int num_keys)
+{
+    e2e_mock_keys = calloc(2, sizeof(test_keys_type));
+}
 
 test_keys_type * e2e_get_mock_keys(void)
 {
@@ -51,8 +57,7 @@ int e2e_get_mock_key_count(void)
 void e2e_init_mock_key(
     const char *locator, const zone_type *zone, bool is_ksk, bool is_zsk)
 {
-    e2e_mock_keys = realloc(e2e_mock_keys, ++e2e_mock_key_count * sizeof(test_keys_type));
-    int new_key_idx = e2e_mock_key_count - 1;
+    int new_key_idx = e2e_mock_key_count++;
     test_keys_type *mock_key = &e2e_mock_keys[new_key_idx];
 
     mock_key->ldns_key = ldns_key_new_frm_algorithm(LDNS_RSASHA256, 2048);
@@ -104,4 +109,23 @@ void e2e_configure_mocks(
     // state->worker->task->what = task_id;
     configure_mock_hsm(state);
     configure_mock_worker(state, input_zone);
+}
+
+void e2e_go(const e2e_test_state_type* state, ...)
+{
+    va_list args;
+
+    va_start(args, state);
+    task_id task_type;
+    while (TASK_STOP != (task_type = va_arg(args, task_id))) {
+        will_return(__wrap_task_perform, task_type);
+    }
+    va_end(args);
+
+    // inject the poision pill so that the last task can be detected.
+    // inject the worker so that it can be signalled to exit.
+    will_return(__wrap_task_perform, TASK_STOP);
+    will_return(__wrap_task_perform, state->context->worker);
+
+    worker_start(state->context->worker);
 }

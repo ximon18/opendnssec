@@ -4,8 +4,8 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- *    notice, this list
-  of conditions and the following disclaimer.
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -24,12 +24,37 @@
  *
  */
 #include "test_framework.h"
+#include "daemon/engine.h"
 
 
-void set_mock_input_zone_file(const char* file_content)
+void setup_mock_engine(e2e_test_state_type *state)
 {
-    for (int i = 0; i < strlen(file_content); i++) {
-        will_return(__wrap_ods_fgetc, file_content[i]);
-    }
-    will_return(__wrap_ods_fgetc, EOF);
+    engine_start(NULL, 0, 0, 0);
+}
+
+// ----------------------------------------------------------------------------
+// monkey patches:
+// these require compilation with -Wl,--wrap=ods_log_debug,--wrap=xxx etc to 
+// cause these wrapper implementations to replace the originals.
+// ----------------------------------------------------------------------------
+int __wrap_janitor_thread_create(janitor_thread_t* thread, janitor_threadclass_t threadclass, janitor_runfn_t func, void*data)
+{
+    MOCK_ANNOUNCE();
+    return 0;
+}
+void __wrap_cmdhandler_cleanup(cmdhandler_type* cmdhandler)
+{
+    MOCK_ANNOUNCE();
+}
+void __wrap_dnshandler_cleanup(dnshandler_type* dnshandler)
+{
+    MOCK_ANNOUNCE();
+}
+void __wrap_xfrhandler_cleanup(xfrhandler_type* xfrhandler)
+{
+    MOCK_ANNOUNCE();
+}
+void __wrap_engine_config_cleanup(engineconfig_type* config)
+{
+    MOCK_ANNOUNCE();
 }
