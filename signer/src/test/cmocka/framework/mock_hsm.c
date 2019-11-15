@@ -86,7 +86,7 @@ const libhsm_key_t* __wrap_keycache_lookup(hsm_ctx_t* ctx, const char* locator) 
     }
     fail_msg("No key with locator %s found\n", locator);
 }
-int __wrap_hsm_open2(hsm_repository_t* rlist, char *(pin_callback)(unsigned int, const char *, unsigned int))
+int __wrap_hsm_open2(struct engineconfig_repository* rlist, char *(pin_callback)(unsigned int, const char *, unsigned int))
 {
     MOCK_ANNOUNCE();
     return HSM_OK;

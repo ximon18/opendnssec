@@ -127,6 +127,8 @@ test_signer_tests_LDFLAGS+=  -Wl,--wrap=ods_fgetc
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=ods_chown
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=util_write_pidfile
 
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=logger_configurecls
+
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=hsm_open2
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=hsm_close
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=hsm_check_context
@@ -149,6 +151,9 @@ test_signer_tests_LDFLAGS+=  -Wl,--wrap=cmdhandler_cleanup
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=dnshandler_cleanup
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=xfrhandler_cleanup
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=engine_config_cleanup
+
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=metastorageget
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=metastorageput
 
 # The next one is a cmocka function that is too noisy and offers no way to
 # silence it, but by wrapping it we can silence it.

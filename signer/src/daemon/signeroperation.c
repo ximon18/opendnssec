@@ -199,6 +199,12 @@ rrset_sign(signconf_type* signconf, names_view_type view, recordset_type record,
     ldns_rr_type delegpt = LDNS_RR_TYPE_FIRST;
     ldns_rr_list* rrset = NULL;
     int nmatchedsignatures;
+    const char *rr_type_str = NULL;
+
+    rr_type_str = ldns_rr_type2str(rrtype);
+
+    logger_message(&cls,logger_noctx,logger_TRACE, "XIMON: signeroperation: record=%s rrtype=%s record=%p expiry=%ld\n",
+        names_recordgetname(record), rr_type_str, record, record && names_recordhasexpiry(record) ? names_recordgetexpiry(record) : 0);
 
     /* Calculate the Refresh Window = Signing time + Refresh */
     uint32_t refresh = 0;
@@ -312,18 +318,22 @@ rrset_sign(signconf_type* signconf, names_view_type view, recordset_type record,
             }
         }
     }
+
     /* Calculate signature validity for new signatures */
     rrset_sigvalid_period(signconf, rrtype, signtime, &inception, &expiration);
     /* for each missing signature (no signature, but with key in the tuplie list) produce a signature */
     for (int i = 0; i < nmatchedsignatures; i++) {
         if (!matchedsignatures[i].signature && matchedsignatures[i].key) {
             /* Sign the RRset with this key */
-            logger_message(&cls,logger_noctx,logger_TRACE, "sign %s with key %s inception=%ld expiration=%ld delegation=%s occluded=%s\n",names_recordgetname(record),matchedsignatures[i].key->locator,(long)expiration,(long)expiration,(delegpt!=LDNS_RR_TYPE_SOA?"yes":"no"),(dstatus!=LDNS_RR_TYPE_SOA?"yes":"no"));
+            logger_message(&cls,logger_noctx,logger_TRACE, "sign record %s in rrset %s with key %s inception=%ld expiration=%ld delegation=%s occluded=%s\n",
+                names_recordgetname(record),rr_type_str,matchedsignatures[i].key->locator,(long)inception,
+                (long)expiration,(delegpt!=LDNS_RR_TYPE_SOA?"yes":"no"),(dstatus!=LDNS_RR_TYPE_SOA?"yes":"no"));
             rrsig = lhsm_sign(ctx, rrset, matchedsignatures[i].key, inception, expiration);
             if (rrsig == NULL) {
                 ods_log_crit("unable to sign RRset[%i]: lhsm_sign() failed", rrtype);
                 if(rrset) ldns_rr_list_free(rrset);
                 free(matchedsignatures);
+                free(rr_type_str);
                 return ODS_STATUS_HSM_ERR;
             }
             /* Add signature */
@@ -342,6 +352,7 @@ rrset_sign(signconf_type* signconf, names_view_type view, recordset_type record,
                         ldns_rdf_free(apex);
                     if(rrset) ldns_rr_list_free(rrset);
                     free(matchedsignatures);
+                    free(rr_type_str);
                     return status;
                 }
                 /* Add signature */
@@ -356,6 +367,7 @@ rrset_sign(signconf_type* signconf, names_view_type view, recordset_type record,
     /* RRset signing completed */
     if(rrset) ldns_rr_list_free(rrset);
     free(matchedsignatures);
+    free(rr_type_str);
     return 0;
 }
 

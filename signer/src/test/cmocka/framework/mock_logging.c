@@ -32,6 +32,34 @@
 #define DEFAULT_LOG_LEVEL      "warning"
 #define LOG_LEVELS_LOW_TO_HIGH "mock,deeebug,debug,verbose,info,warning,error,crit,fatal"
 
+#define WRAP_VASTART(format) \
+        va_list args; \
+        va_start(args, format);
+
+#define WRAP_VAEND \
+        va_end(args);
+
+#define WRAP_VARARGS_LOGN(level, format, args) \
+    WRAP_VARARGS_LOG_WITH_EOL(level, format, "\n", args)
+
+#define WRAP_VARARGS_LOG(level, format, args) \
+    WRAP_VARARGS_LOG_WITH_EOL(level, format, "", args)
+
+#define WRAP_VARARGS_LOG_WITH_EOL(level, format, eol, args) \
+    if (log_level_enabled(level)) { \
+        TEST_LOG_NOCHECK(level)); \
+        vfprintf(stderr, format, args); \
+        fprintf(stderr, eol); \
+    }
+
+#define WRAP_UNEXPECTED_ODS_LOGN(level, format, args) \
+    WRAP_VARARGS_LOGN(level, format, args); \
+    check_expected(format);
+
+#define WRAP_UNEXPECTED_ODS_LOG(level, format, args) \
+    WRAP_VARARGS_LOG(level, format, args); \
+    check_expected(format);
+
 
 static char *log_filter = "all";
 
@@ -51,6 +79,23 @@ bool log_level_enabled(const char *log_level)
     return 0 != strstr(log_filter, log_level);
 }
 
+// for the new ODS 2.2 logging framework
+logger_result_type mock_logger_proc(
+    const logger_cls_type* cls, const logger_ctx_type ctx,
+    const logger_lvl_type lvl, const char* format, va_list ap)
+{
+    switch (lvl) {
+        case logger_FATAL: WRAP_UNEXPECTED_ODS_LOG("fatal", format, ap); break;
+        case logger_ERROR: WRAP_UNEXPECTED_ODS_LOG("error", format, ap); break;
+        case logger_WARN:  WRAP_UNEXPECTED_ODS_LOG("warning", format, ap); break;
+        case logger_INFO:  WRAP_VARARGS_LOG("info", format, ap); break;
+        case logger_DEBUG: WRAP_VARARGS_LOG("debug", format, ap); break;
+        case logger_DIAG:  WRAP_VARARGS_LOG("deeebug", format, ap); break;
+    }
+    return logger_CONT;
+    // return logger_log_stderr(cls, ctx, lvl, format, ap);
+}
+
 void set_logging_level(const char *log_level)
 {
     log_level = log_level ? log_level : getenv("TESTING_LOG_LEVEL");
@@ -59,6 +104,8 @@ void set_logging_level(const char *log_level)
         log_filter = get_ge_log_levels(log_level);
     }
     TEST_LOG("info") "Enabled logging levels: %s\n", log_filter);
+    // for the new ODS 2.2 logging framework
+    logger_configurecls("mocklogger", logger_DIAG, mock_logger_proc);
 }
 
 void set_filtered_tests(const char *filter)
@@ -75,26 +122,6 @@ void set_filtered_tests(const char *filter)
     }
 }
 
-#define WRAP_VARARGS_LOGN(level, format) \
-    WRAP_VARARGS_LOG_WITH_EOL(level, format, "\n")
-
-#define WRAP_VARARGS_LOG(level, format) \
-    WRAP_VARARGS_LOG_WITH_EOL(level, format, "")
-
-#define WRAP_VARARGS_LOG_WITH_EOL(level, format, eol) \
-    if (log_level_enabled(level)) { \
-        va_list args; \
-        va_start(args, format); \
-        TEST_LOG_NOCHECK(level)); \
-        vfprintf(stderr, format, args); \
-        fprintf(stderr, eol); \
-        va_end(args); \
-    }
-
-#define WRAP_UNEXPECTED_ODS_LOG(level, format) \
-    WRAP_VARARGS_LOGN(level, format); \
-    check_expected(format);
-
 // ----------------------------------------------------------------------------
 // monkey patches:
 // these require compilation with -Wl,--wrap=ods_log_debug,--wrap=xxx etc to 
@@ -103,19 +130,27 @@ void set_filtered_tests(const char *filter)
 void __wrap_print_message(const char* const format, ...) {
     // Silence irritating CMocka printf output for which no off switch exists.
     if (!strcmp(format, "Expected assertion false occurred")) {
-        WRAP_VARARGS_LOG("mock", format);
+        WRAP_VASTART(format);
+        WRAP_VARARGS_LOG("mock", format, args);
+        WRAP_VAEND;
     }
 }
 
 int  __wrap_ods_log_get_level()                      { return 999; } // pass everything thru to us
-void __wrap_ods_log_deeebug(const char *format, ...) { WRAP_VARARGS_LOGN("deeebug", format); }
-void __wrap_ods_log_debug(const char *format, ...)   { WRAP_VARARGS_LOGN("debug", format); }
-void __wrap_ods_log_verbose(const char *format, ...) { WRAP_VARARGS_LOGN("verbose", format); }
-void __wrap_ods_log_info(const char *format, ...)    { WRAP_VARARGS_LOGN("info", format); }
-void __wrap_ods_log_warning(const char *format, ...) { WRAP_UNEXPECTED_ODS_LOG("warning", format); }
-void __wrap_ods_log_error(const char *format, ...)   { WRAP_UNEXPECTED_ODS_LOG("error", format); }
-void __wrap_ods_log_crit(const char *format, ...)    { WRAP_UNEXPECTED_ODS_LOG("crit", format); }
-void __wrap_ods_fatal_exit(const char *format, ...)  { WRAP_UNEXPECTED_ODS_LOG("fatal", format); }
+void __wrap_ods_log_deeebug(const char *format, ...) { WRAP_VASTART(format); WRAP_VARARGS_LOGN("deeebug", format, args); WRAP_VAEND; }
+void __wrap_ods_log_debug(const char *format, ...)   { WRAP_VASTART(format); WRAP_VARARGS_LOGN("debug", format, args); WRAP_VAEND; }
+void __wrap_ods_log_verbose(const char *format, ...) { WRAP_VASTART(format); WRAP_VARARGS_LOGN("verbose", format, args); WRAP_VAEND; }
+void __wrap_ods_log_info(const char *format, ...)    { WRAP_VASTART(format); WRAP_VARARGS_LOGN("info", format, args); WRAP_VAEND; }
+void __wrap_ods_log_warning(const char *format, ...) { WRAP_VASTART(format); WRAP_UNEXPECTED_ODS_LOGN("warning", format, args); WRAP_VAEND; }
+void __wrap_ods_log_error(const char *format, ...)   { WRAP_VASTART(format); WRAP_UNEXPECTED_ODS_LOGN("error", format, args); WRAP_VAEND; }
+void __wrap_ods_log_crit(const char *format, ...)    { WRAP_VASTART(format); WRAP_UNEXPECTED_ODS_LOGN("crit", format, args); WRAP_VAEND; }
+void __wrap_ods_fatal_exit(const char *format, ...)  { WRAP_VASTART(format); WRAP_UNEXPECTED_ODS_LOGN("fatal", format, args); WRAP_VAEND; }
+
+// for the new ODS 2.2 logging framework
+void __wrap_logger_configurecls(const char* name, logger_lvl_type minlvl, logger_procedure proc)
+{
+    __real_logger_configurecls(name, minlvl, mock_logger_proc);
+}
 
 // ----------------------------------------------------------------------------
 // cmocka check_expect() plugin functions:

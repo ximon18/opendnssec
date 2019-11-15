@@ -29,7 +29,6 @@
 #include "mock_hsm.h"
 #include "daemon/engine.h"
 #include "scheduler/fifoq.h"
-#include "signer/rrset.h"
 #include "daemon/signertasks.h"
 
 
@@ -44,6 +43,8 @@ void setup_mock_worker(e2e_test_state_type *state)
     char* tmp_zone_name = strdup(MOCK_ZONE_NAME);
     zone_type* zone = zone_create(tmp_zone_name, LDNS_RR_CLASS_IN);
     free(tmp_zone_name);
+
+    zone_start(zone);
 
     zone->signconf->sig_resign_interval = duration_create_from_string("P1D");
     zone->signconf->keys = keylist_create(zone->signconf);
@@ -66,45 +67,6 @@ void teardown_mock_worker(e2e_test_state_type *state)
     free(state->context);
 }
 
-// WHY does it cause a segfault if we call the copy of this function that is
-// in signer/daemon/engine.c???
-engine_type*
-cloned_engine_create(void)
-{
-    engine_type* engine;
-    CHECKALLOC(engine = (engine_type*) malloc(sizeof(engine_type)));
-    engine->config = NULL;
-    engine->workers = NULL;
-    engine->cmdhandler = NULL;
-    engine->dnshandler = NULL;
-    engine->xfrhandler = NULL;
-    engine->taskq = NULL;
-    engine->pid = -1;
-    engine->uid = -1;
-    engine->gid = -1;
-    engine->daemonize = 0;
-    engine->need_to_exit = 0;
-    engine->need_to_reload = 0;
-    pthread_mutex_init(&engine->signal_lock, NULL);
-    pthread_cond_init(&engine->signal_cond, NULL);
-    engine->zonelist = zonelist_create();
-    if (!engine->zonelist) {
-        engine_cleanup(engine);
-        return NULL;
-    }
-    if (!(engine->taskq = schedule_create())) {
-        engine_cleanup(engine);
-        return NULL;
-    }
-    schedule_registertask(engine->taskq, TASK_CLASS_SIGNER, TASK_SIGNCONF, do_readsignconf);
-    schedule_registertask(engine->taskq, TASK_CLASS_SIGNER, TASK_FORCESIGNCONF, do_forcereadsignconf);
-    schedule_registertask(engine->taskq, TASK_CLASS_SIGNER, TASK_READ, do_readzone);
-    schedule_registertask(engine->taskq, TASK_CLASS_SIGNER, TASK_FORCEREAD, do_forcereadzone);
-    schedule_registertask(engine->taskq, TASK_CLASS_SIGNER, TASK_SIGN, do_signzone);
-    schedule_registertask(engine->taskq, TASK_CLASS_SIGNER, TASK_WRITE, do_writezone);
-    return engine;
-}
-
 void configure_mock_worker(
     e2e_test_state_type* state,
     const char *input_zone)
@@ -113,18 +75,17 @@ void configure_mock_worker(
     if (input_zone)
     {
         zone_type *zone = state->zone;
-        zone->signconf_filename = strdup("UNUSED MOCK SIGNCONF FILENAME");
-        zone->adinbound = adapter_create("UNUSED MOCK ZONE_FILENAME", ADAPTER_FILE, 1);
+        zone->signconf_filename = strdup(MOCK_ZONE_SIGNCONF_NAME);
+        zone->adinbound = adapter_create(MOCK_ZONE_FILE_NAME, ADAPTER_FILE, 1);
         set_mock_input_zone_file(input_zone);
 
-        state->context->engine = cloned_engine_create(); // engine_create();
+        state->context->engine = engine_create(); //cloned_engine_create();
 
         state->context->worker = worker_create(strdup("MOCK_WORKER"),
             state->context->engine->taskq);
         state->context->worker->context = state->context;
         state->context->engine->config = calloc(1, sizeof(engineconfig_type));
         state->context->engine->config->num_signer_threads = 0;
-        state->context->engine->config->num_worker_threads = 0;
 
         schedule_scheduletask(
             state->context->engine->taskq, TASK_READ, zone->name, zone, &zone->zone_lock, schedule_PROMPTLY);
@@ -139,14 +100,14 @@ void configure_mock_worker(
 // ----------------------------------------------------------------------------
 
 // Mock worker task queuing and drudger thread
-void worker_queue_rrset(worker_type* worker, fifoq_type* q, rrset_type* rrset)
+void worker_queue_domain(struct worker_context* context, fifoq_type* q, void* item, long* nsubtasks)
 {
     // emulate a drudger thread picking up a queued task, don't actually queue
     // anything instead just execute the drudger action that is performed on
     // dequeued tasks, i.e. sign an rrset.
     MOCK_ANNOUNCE();
     hsm_ctx_t *ctx = mock();
-    assert_int_equal(ODS_STATUS_OK, rrset_sign(ctx, rrset, time_now()));
+    assert_int_equal(ODS_STATUS_OK, signdomain(context, ctx, (recordset_type)item));
 }
 
 
@@ -193,4 +154,13 @@ void __wrap_task_perform(schedule_type* scheduler, task_type* task, void* contex
 
     TEST_LOG("mock") "Performing task %s.\n", task->type);
     __real_task_perform(scheduler, task, context);
+}
+int __wrap_metastorageget(const char* name, void* item)
+{
+    MOCK_ANNOUNCE();
+    return 0;
+}
+int __wrap_metastorageput(void* item)
+{
+    MOCK_ANNOUNCE();
 }

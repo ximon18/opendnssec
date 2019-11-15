@@ -1,6 +1,9 @@
 {
     "files.associations": {
         "key_data.h": "c",
-        "hsm_key.h": "c"
+        "hsm_key.h": "c",
+        "mock_logging.h": "c",
+        "mock_worker.h": "c",
+        "test_framework.h": "c"
     }
 }

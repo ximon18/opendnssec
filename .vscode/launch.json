@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "/src/build/signer/src/test/signer_tests",
-            "args": ["--log=all", "--test=e2e_test_load_zone_file"],
+            "args": ["--log=all"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

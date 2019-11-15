@@ -55,7 +55,11 @@ RUN apt-get -y install --no-install-recommends \
     # Additional packages needed
     # prevents configure syntax error near unexpected token `LIBUNWIND` caused
     # by missing PKG_CHECK_MODULES m4 macro.
-    pkg-config
+    pkg-config \
+    # OpenDNSSEC 2.2.x dependencies
+    libmicrohttpd-dev \
+    libjansson-dev \
+    libyaml-dev
 
 # Setup SoftHSM v2.
 # Based on: https://wiki.opendnssec.org/display/SoftHSMDOCS/SoftHSM+Documentation+v2

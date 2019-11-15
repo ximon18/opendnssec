@@ -128,7 +128,7 @@ worker_check_jobs(worker_type* worker, task_type* task, int ntasks, long ntasksf
     return ODS_STATUS_OK;
 }
 
-static ods_status
+mockable_static ods_status
 signdomain(struct worker_context* superior, hsm_ctx_t* ctx, recordset_type record)
 {
     ods_status status;
@@ -159,6 +159,7 @@ signdomain(struct worker_context* superior, hsm_ctx_t* ctx, recordset_type recor
     }
     free(rrsigs);
     names_recordsetexpiry(record, expiration);
+    // char* tmp = names_recordgetname(record);
     logger_message(&names_logsigning,logger_noctx,logger_DEBUG,"signed %s expiration %ld\n",names_recordgetname(record),expiration);
     return ODS_STATUS_OK;
 }
@@ -397,7 +398,6 @@ do_signzone(task_type* task, const char* zonename, void* zonearg, void *contexta
     prepareview = zonelist_obtainresource(NULL, zone, NULL, offsetof(zone_type, prepareview));
     names_viewreset(prepareview);
     preparesign(prepareview, newserial);
-     
 
     status = zone_update_serial(zone, prepareview);
     if (status != ODS_STATUS_OK) {
@@ -471,6 +471,8 @@ do_signzone(task_type* task, const char* zonename, void* zonearg, void *contexta
             time_t refreshtime = context->clock_in + duration2time(zone->signconf->sig_refresh_interval);
             ctx = hsm_create_context();
             for(iter=names_viewiterator(signview,names_iteratorexpiring,refreshtime); names_iterate(&iter,&record); names_advance(&iter,NULL)) {
+                ods_log_deeebug("XIMON signertasks: record=%s record=%p expiry=%ld",
+        names_recordgetname(record), record, record && names_recordhasexpiry(record) ? names_recordgetexpiry(record) : 0);
                 names_amend(signview, record);
                 signdomain(context, ctx, record);
             }

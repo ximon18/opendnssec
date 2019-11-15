@@ -95,8 +95,16 @@ int e2e_teardown(e2e_test_state_type** state)
     e2e_test_state_type *e2e_test_state = *state;
     teardown_mock_worker(e2e_test_state);
     teardown_mock_hsm(e2e_test_state->hsm_ctx);
-    free(e2e_test_state);
+    for (int i = 0; i < e2e_mock_key_count; i++) {
+        test_keys_type *mock_key = &e2e_mock_keys[i];
+        free(mock_key->hsm_key->modulename);
+        free(mock_key->hsm_key);
+        free(mock_key->locator);
+        ldns_rr_free(mock_key->ldns_rr);
+        ldns_key_free(mock_key->ldns_key);
+    }
     free(e2e_mock_keys);
+    free(e2e_test_state);
     e2e_mock_key_count = 0;
     return 0;
 }
@@ -128,4 +136,20 @@ void e2e_go(const e2e_test_state_type* state, ...)
     will_return(__wrap_task_perform, state->context->worker);
 
     worker_start(state->context->worker);
+}
+
+int unittest_setup(void **state)
+{
+    char* zone_name = strdup("test_zone");
+    zone_type *zone = zone_create(zone_name, LDNS_RR_CLASS_IN);
+    free(zone_name);
+    (*state) = zone;
+    return 0;
+}
+
+int unittest_teardown(void **state)
+{
+    zone_type *zone = (zone_type *)(*state);
+    zone_cleanup(zone);
+    return 0;
 }

@@ -25,6 +25,7 @@
  */
 #include <time.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 
 #include "test_framework.h"
@@ -68,7 +69,13 @@ time_t __wrap_time_now(void)
 FILE* __wrap_ods_fopen(const char* file, const char* dir, const char* mode)
 {
     MOCK_ANNOUNCE();
-    return MOCK_POINTER; // override fgetc and return data based on the ptr returned here?
+    if (0 == strcmp(file, MOCK_ZONE_FILE_NAME)) {
+        TEST_LOG("deeebug") "Returning mock FILE* on attempt to open file %s in dir %s with mode %s\n", file, dir, mode);
+        return MOCK_POINTER;
+    } else {
+        TEST_LOG("error") "Returning NULL FILE* on attempt to open file %s in dir %s with mode %s\n", file, dir, mode);
+        return 0;
+    }
 }
 void __wrap_ods_fclose(FILE* fd)
 {

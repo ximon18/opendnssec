@@ -27,11 +27,6 @@
 #include "daemon/engine.h"
 
 
-void setup_mock_engine(e2e_test_state_type *state)
-{
-    engine_start(NULL, 0, 0, 0);
-}
-
 // ----------------------------------------------------------------------------
 // monkey patches:
 // these require compilation with -Wl,--wrap=ods_log_debug,--wrap=xxx etc to 

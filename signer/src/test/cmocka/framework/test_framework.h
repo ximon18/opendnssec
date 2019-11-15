@@ -63,13 +63,14 @@
     }
 
 #define UNIT_TEST_BEGIN(name) \
-    void unit_test_ ## name(void **unused); \
+    void unit_test_ ## name(void **state); \
     __attribute__((constructor)) \
     static void register_unit_test_ ## name() { \
-        struct CMUnitTest test = cmocka_unit_test(unit_test_ ## name); \
+        struct CMUnitTest test = cmocka_unit_test_setup_teardown(unit_test_ ## name, unittest_setup, unittest_teardown); \
         register_test(&test); \
     } \
-    void unit_test_ ## name(void **unused) { \
+    void unit_test_ ## name(void **state) { \
+        zone_type *zone = (zone_type *)(*state); \
         
 #define UNIT_TEST_END \
     }
@@ -94,7 +95,9 @@ typedef struct test_keys_struct {
 } test_keys_type;
 
 
-#define MOCK_ZONE_NAME           "mockzone."
+#define MOCK_ZONE_NAME           "MOCKZONE."
+#define MOCK_ZONE_SIGNCONF_NAME  "MOCK SIGNCONF FILENAME"
+#define MOCK_ZONE_FILE_NAME      "MOCK ZONE_FILENAME"
 #define MOCK_ASSERT(expression)  mock_assert((int)(expression), #expression, __FILE__, __LINE__);
 #define MOCK_POINTER             (void*)0xDEADBEEF
 #define TASK_STOP                NULL
@@ -107,6 +110,10 @@ int             e2e_setup(void** state);
 int             e2e_teardown(e2e_test_state_type** state);
 void            e2e_configure_mocks(const e2e_test_state_type* state, const task_id task_id, const char *input_zone);
 void            e2e_go(const e2e_test_state_type* state, ...);
+
+
+int unittest_setup(void **state);
+int unittest_teardown(void **state);
 
 
 #endif

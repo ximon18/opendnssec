@@ -73,7 +73,7 @@ static const char* engine_str = "engine";
  * Create engine.
  *
  */
-mockable_static engine_type*
+engine_type*
 engine_create(void)
 {
     engine_type* engine;
