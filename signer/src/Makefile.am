@@ -97,6 +97,7 @@ test_signer_tests_SOURCES+=  test/cmocka/framework/mock_hsm.c
 test_signer_tests_SOURCES+=  test/cmocka/framework/mock_inputs.c
 test_signer_tests_SOURCES+=  test/cmocka/framework/mock_outputs.c
 test_signer_tests_SOURCES+=  test/cmocka/framework/mock_worker.c
+test_signer_tests_SOURCES+=  test/cmocka/framework/strings.c
 test_signer_tests_SOURCES+=  test/cmocka/tests/poc_namedb_update_serial_test.c
 test_signer_tests_SOURCES+=  test/cmocka/tests/poc_e2e_test.c
 test_signer_tests_SOURCES+=  cryptoki_compat/pkcs11.h

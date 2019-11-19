@@ -116,4 +116,8 @@ int unittest_setup(void **state);
 int unittest_teardown(void **state);
 
 
+// Caller is responsible for calling free() on the result.
+char* from_template(const char* template, char **replacements);
+
+
 #endif
