@@ -26,6 +26,7 @@
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <fcntl.h>
 
 
 #include "test_framework.h"
@@ -70,10 +71,10 @@ FILE* __wrap_ods_fopen(const char* file, const char* dir, const char* mode)
 {
     MOCK_ANNOUNCE();
     if (0 == strcmp(file, MOCK_ZONE_FILE_NAME)) {
-        TEST_LOG("deeebug") "Returning mock FILE* on attempt to open file %s in dir %s with mode %s\n", file, dir, mode);
+        TEST_LOG("mock") "Returning mock FILE* from ods_fopen() '%s' in dir '%s' with mode '%s'\n", file, dir, mode);
         return MOCK_POINTER;
     } else {
-        TEST_LOG("error") "Returning NULL FILE* on attempt to open file %s in dir %s with mode %s\n", file, dir, mode);
+        TEST_LOG("mock") "Deliberately failing to ods_fopen() '%s' in dir '%s' with mode '%s'\n", file, dir, mode);
         return 0;
     }
 }
@@ -110,4 +111,83 @@ ods_status __wrap_parse_file_check(const char* cfgfile, const char* rngfile)
 {
     MOCK_ANNOUNCE()
     return ODS_STATUS_OK;
+}
+
+// Wrap direct I/O calls to enable interception of views.c and marshalling.c
+// direct .state(.tmp) file access.
+int __wrap_open(const char *__path, int __oflag, ...)
+{
+    MOCK_ANNOUNCE()
+
+    const char *file_ext = strchr(__path, '.');
+    const char *mock_target = NULL;
+    char *mock_action = NULL;
+    e2e_view_state_mode mode = mock();
+
+    if ((__oflag & O_RDWR) && 0 == strcmp(file_ext, ".state")) {
+        mock_action = "READ";
+        if (mode & E2E_VIEWSTATE_R_OKAY) {
+            // Allow ODS to read view state
+            mock_target = MOCK_VIEW_STATE_PATH;
+        }
+    }
+    else if ((__oflag & O_CREAT) && 0 == strcmp(file_ext, ".state.tmp")) {
+        mock_action = "WRITE";
+        if (mode & E2E_VIEWSTATE_W_OKAY) {
+            // Allow ODS to write view state
+            mock_target = MOCK_VIEW_STATE_PATH;
+        } else {
+            // Prevent ODS from writing view state, but pretend to allow it
+            // otherwise it gets upset
+            mock_target = MOCK_FD;
+        }
+    }
+
+    if (MOCK_FD == mock_target) {
+        TEST_LOG("mock") "Preventing open(%s) view state by pretending to open() '%s'\n", mock_action, __path);
+        return MOCK_FD;
+    } else if (mock_target) {
+        TEST_LOG("mock") "Redirecting open(%s) '%s' to open '%s' instead\n", mock_action, __path, mock_target);
+        // We don't know how many arguments were passed but in this specific
+        // case just for restoring a state file there are no additional
+        // arguments. The calling code at the time of writing sets mode 0666
+        // and we fail to read the file in a later test if we don't do the
+        // same.
+        return __real_open(mock_target, __oflag, 0666);
+    } else {
+        TEST_LOG("mock") "Deliberately failing open() '%s'\n", __path);
+        return -1;
+    }
+}
+int __wrap_openat(int __fd, const char *__path, int __oflag, ...)
+{
+    MOCK_ANNOUNCE()
+    TEST_LOG("mock") "Deliberately failing to openat() '%s'\n", __path);
+    return -1;
+}
+ssize_t __wrap_read(int __fd, void *__buf, size_t __nbytes)
+{
+    MOCK_ANNOUNCE()
+    return __real_read(__fd, __buf, __nbytes);
+}
+ssize_t __wrap_write(int __fd, const void *__buf, size_t __n)
+{
+    // don't announce -- too verbose
+    if (__fd == MOCK_FD) {
+        // pretend to have successfully written the given number of bytes
+        return __n;
+    } else {
+        return __real_write(__fd, __buf, __n);
+    }
+}
+int __wrap_close(int __fd)
+{
+    MOCK_ANNOUNCE()
+    return __fd == MOCK_FD ? 0 : __real_close(__fd);
+}
+int __wrap_renameat(int __oldfd, const char *__old, int __newfd,
+		     const char *__new)
+{
+    // pretend to have done the rename
+    return 0;
 }

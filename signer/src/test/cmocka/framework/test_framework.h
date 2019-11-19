@@ -57,9 +57,11 @@
         register_test(&test); \
     } \
     void e2e_test_ ## name(e2e_test_state_type** cmocka_state) { \
+        TEST_LOG("mock") "Test started\n"); \
         e2e_test_state_type *state = *cmocka_state;
 
 #define E2E_TEST_END \
+    TEST_LOG("mock") "Test finished\n"); \
     }
 
 #define UNIT_TEST_BEGIN(name) \
@@ -95,11 +97,23 @@ typedef struct test_keys_struct {
 } test_keys_type;
 
 
-#define MOCK_ZONE_NAME           "MOCKZONE."
+// bit flags - OR them as desired
+typedef enum {
+    E2E_VIEWSTATE_NO_RW  = 0,
+    E2E_VIEWSTATE_R_OKAY = 1,
+    E2E_VIEWSTATE_W_OKAY = 2
+} e2e_view_state_mode;
+
+
+#define MOCK_VIEW_STATE_PATH     "e2e_temp.state"
+#define MOCK_ZONE_NAME           "MOCKZONE"
+#define MOCK_ZONE_NAME_STATE     MOCK_ZONE_NAME ".state"
+#define MOCK_ZONE_NAME_STATE_TMP MOCK_ZONE_NAME_STATE ".tmp"
 #define MOCK_ZONE_SIGNCONF_NAME  "MOCK SIGNCONF FILENAME"
 #define MOCK_ZONE_FILE_NAME      "MOCK ZONE_FILENAME"
 #define MOCK_ASSERT(expression)  mock_assert((int)(expression), #expression, __FILE__, __LINE__);
 #define MOCK_POINTER             (void*)0xDEADBEEF
+#define MOCK_FD                  1818
 #define TASK_STOP                NULL
 
 

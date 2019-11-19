@@ -115,11 +115,11 @@ int e2e_teardown(e2e_test_state_type** state)
 
 zone_type * e2e_configure_mocks(
     const e2e_test_state_type* state,
-    const task_id task_id,
-    const char *input_zone)
+    const char *input_zone,
+    e2e_view_state_mode view_state_mode)
 {
-    // state->worker->task->what = task_id;
     configure_mock_hsm(state);
+    will_return_always(__wrap_open, view_state_mode);
     return configure_mock_worker(state, input_zone);
 }
 

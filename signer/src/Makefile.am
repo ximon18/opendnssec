@@ -156,6 +156,15 @@ test_signer_tests_LDFLAGS+=  -Wl,--wrap=engine_config_cleanup
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=metastorageget
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=metastorageput
 
+# Wrap direct I/O calls to enable interception of views.c and marshalling.c
+# direct .state file access.
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=open
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=openat
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=read
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=write
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=close
+test_signer_tests_LDFLAGS+=  -Wl,--wrap=renameat
+
 # The next one is a cmocka function that is too noisy and offers no way to
 # silence it, but by wrapping it we can silence it.
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=print_message
