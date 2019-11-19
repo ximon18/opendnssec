@@ -50,20 +50,63 @@
        test: log[crit] expect_sig_count: check zone->stats->sig_count != expected failed because 15 != 14
 */
 
-#define DEFINE_SIGNED_ZONE_CHECK(func_name, test_field, test_op) \
+
+#define DEFINE_SIGNED_ZONE_PLUGIN_FUNC_WITH_FUNC(func_name, cmp_func) \
+    int func_name ## _expect_check_custom_parameter_checking_func( \
+        const LargestIntegralType value, const LargestIntegralType expected) \
+    { \
+        zone_type *zone = (zone_type *) value; \
+        if (cmp_func(value, expected)) { \
+            TEST_LOG("crit") #func_name ": check " #cmp_func " failed\n"); \
+            return 0; \
+        } else { \
+            return 1; \
+        } \
+    } \
+
+
+#define DEFINE_SIGNED_ZONE_PLUGIN_WITH_OP(func_name, test_field, test_op) \
     int func_name ## _expect_check_custom_parameter_checking_func( \
         const LargestIntegralType value, const LargestIntegralType expected) \
     { \
         zone_type *zone = (zone_type *) value; \
         if (test_field test_op expected) { \
             TEST_LOG("crit") #func_name ": check " \
-            #test_field " " #test_op " expected " \
-            "failed because %d != %d\n", test_field, expected); \
+                #test_field " " #test_op " expected " \
+                "failed because %d != %d\n", test_field, expected); \
             return 0; \
         } else { \
             return 1; \
         } \
     } \
+
+
+#define DEFINE_SIGNED_ZONE_CHECK_RETURNS_ZERO(func_name, test_field) \
+    DEFINE_SIGNED_ZONE_PLUGIN_WITH_OP(func_name, test_field, !=) \
+    void func_name(void) \
+    { \
+        expect_check( \
+            __wrap_adapter_write, \
+            zone, \
+            func_name ## _expect_check_custom_parameter_checking_func, \
+            0); \
+    }
+
+
+#define DEFINE_SIGNED_ZONE_CHECK_WITH_OP(func_name, test_field, test_op) \
+    DEFINE_SIGNED_ZONE_PLUGIN_WITH_OP(func_name, test_field, test_op) \
+    void func_name(const LargestIntegralType expected) \
+    { \
+        expect_check( \
+            __wrap_adapter_write, \
+            zone, \
+            func_name ## _expect_check_custom_parameter_checking_func, \
+            expected); \
+    }
+
+
+#define DEFINE_SIGNED_ZONE_CHECK_WITH_FUNC(func_name, test_func) \
+    DEFINE_SIGNED_ZONE_PLUGIN_FUNC_WITH_FUNC(func_name, test_func) \
     void func_name(const LargestIntegralType expected) \
     { \
         expect_check( \
