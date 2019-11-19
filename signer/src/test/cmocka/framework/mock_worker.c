@@ -37,14 +37,20 @@ void setup_mock_worker(e2e_test_state_type *state)
     // prepare an "engine"
     state->context = calloc(1, sizeof(struct worker_context));
 
+    state->context->engine = engine_create();
+    state->context->worker = worker_create(strdup("MOCK_WORKER"),
+        state->context->engine->taskq);
+    state->context->worker->context = state->context;
+    state->context->worker->need_to_exit = 0;
+    state->context->engine->config = calloc(1, sizeof(engineconfig_type));
+    state->context->engine->config->num_signer_threads = 0;
+
     // build a minimal zone
     // create a tmeporary copy of the zone name because zone_create edits it
     // _before_ it copies it !!!
     char* tmp_zone_name = strdup(MOCK_ZONE_NAME);
     zone_type* zone = zone_create(tmp_zone_name, LDNS_RR_CLASS_IN);
     free(tmp_zone_name);
-
-    zone_start(zone);
 
     zone->signconf->sig_resign_interval = duration_create_from_string("P1D");
     zone->signconf->keys = keylist_create(zone->signconf);
@@ -67,11 +73,10 @@ void teardown_mock_worker(e2e_test_state_type *state)
     free(state->context);
 }
 
-void configure_mock_worker(
+zone_type * configure_mock_worker(
     e2e_test_state_type* state,
     const char *input_zone)
 {
-    will_return_always(worker_queue_rrset, state->hsm_ctx);
     if (input_zone)
     {
         zone_type *zone = state->zone;
@@ -79,17 +84,13 @@ void configure_mock_worker(
         zone->adinbound = adapter_create(MOCK_ZONE_FILE_NAME, ADAPTER_FILE, 1);
         set_mock_input_zone_file(input_zone);
 
-        state->context->engine = engine_create(); //cloned_engine_create();
-
-        state->context->worker = worker_create(strdup("MOCK_WORKER"),
-            state->context->engine->taskq);
-        state->context->worker->context = state->context;
-        state->context->engine->config = calloc(1, sizeof(engineconfig_type));
-        state->context->engine->config->num_signer_threads = 0;
+        zone_start(zone);
 
         schedule_scheduletask(
             state->context->engine->taskq, TASK_READ, zone->name, zone, &zone->zone_lock, schedule_PROMPTLY);
     }
+
+    return state->zone;
 }
 
 

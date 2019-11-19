@@ -27,12 +27,9 @@
 #define TEST_MOCK_WORKER_H
 
 
-// #include "daemon/worker.h"
-
-
 void setup_mock_worker(e2e_test_state_type* state);
 void teardown_mock_worker(e2e_test_state_type* state);
-void configure_mock_worker(e2e_test_state_type* state, const char *input_zone);
+zone_type * configure_mock_worker(e2e_test_state_type* state, const char *input_zone);
 
 
 #endif

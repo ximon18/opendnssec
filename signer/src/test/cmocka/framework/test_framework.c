@@ -83,40 +83,44 @@ void e2e_init_mock_key(
 
 int e2e_setup(void** cmocka_state)
 {
+    TEST_LOG("mock") "Test setup started\n"); \
     e2e_test_state_type *state = calloc(1, sizeof(e2e_test_state_type));
     state->hsm_ctx = setup_mock_hsm();
     setup_mock_worker(state);
     *cmocka_state = state;
+    TEST_LOG("mock") "Test setup finished\n"); \
     return 0;
 }
 
 int e2e_teardown(e2e_test_state_type** state)
 {
+    TEST_LOG("mock") "Test teardown started\n"); \
     e2e_test_state_type *e2e_test_state = *state;
     teardown_mock_worker(e2e_test_state);
-    teardown_mock_hsm(e2e_test_state->hsm_ctx);
     for (int i = 0; i < e2e_mock_key_count; i++) {
         test_keys_type *mock_key = &e2e_mock_keys[i];
         free(mock_key->hsm_key->modulename);
         free(mock_key->hsm_key);
-        free(mock_key->locator);
+        // free(mock_key->locator); // free()'d by keylist_cleanup -> key_delfunc()
         ldns_rr_free(mock_key->ldns_rr);
         ldns_key_free(mock_key->ldns_key);
     }
     free(e2e_mock_keys);
-    free(e2e_test_state);
     e2e_mock_key_count = 0;
+    teardown_mock_hsm(e2e_test_state->hsm_ctx);
+    free(e2e_test_state);
+    TEST_LOG("mock") "Test teardown finished\n"); \
     return 0;
 }
 
-void e2e_configure_mocks(
+zone_type * e2e_configure_mocks(
     const e2e_test_state_type* state,
     const task_id task_id,
     const char *input_zone)
 {
     // state->worker->task->what = task_id;
     configure_mock_hsm(state);
-    configure_mock_worker(state, input_zone);
+    return configure_mock_worker(state, input_zone);
 }
 
 void e2e_go(const e2e_test_state_type* state, ...)
