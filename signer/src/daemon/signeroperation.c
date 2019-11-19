@@ -203,9 +203,6 @@ rrset_sign(signconf_type* signconf, names_view_type view, recordset_type record,
 
     rr_type_str = ldns_rr_type2str(rrtype);
 
-    logger_message(&cls,logger_noctx,logger_TRACE, "XIMON: signeroperation: record=%s rrtype=%s record=%p expiry=%ld\n",
-        names_recordgetname(record), rr_type_str, record, record && names_recordhasexpiry(record) ? names_recordgetexpiry(record) : 0);
-
     /* Calculate the Refresh Window = Signing time + Refresh */
     uint32_t refresh = 0;
     if (signconf && signconf->sig_refresh_interval) {

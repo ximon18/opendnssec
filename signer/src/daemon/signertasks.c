@@ -471,8 +471,6 @@ do_signzone(task_type* task, const char* zonename, void* zonearg, void *contexta
             time_t refreshtime = context->clock_in + duration2time(zone->signconf->sig_refresh_interval);
             ctx = hsm_create_context();
             for(iter=names_viewiterator(signview,names_iteratorexpiring,refreshtime); names_iterate(&iter,&record); names_advance(&iter,NULL)) {
-                ods_log_deeebug("XIMON signertasks: record=%s record=%p expiry=%ld",
-        names_recordgetname(record), record, record && names_recordhasexpiry(record) ? names_recordgetexpiry(record) : 0);
                 names_amend(signview, record);
                 signdomain(context, ctx, record);
             }
