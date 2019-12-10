@@ -147,13 +147,12 @@ void __wrap_task_perform(schedule_type* scheduler, task_type* task, void* contex
     }
     assert_string_equal(expected_task_type, task->type);
 
-    if (0 == strcmp(task->type, TASK_SIGN)) {
-        expect_function_call_any(mock_C_Sign);
-    } else if (0 == strcmp(task->type, TASK_WRITE)) {
-        expect_function_call(__wrap_adapter_write);
-    }
 
-    TEST_LOG("mock") "Performing task %s.\n", task->type);
+    time_t the_time_now = time_now();
+    char time_now_str[20];
+    strftime(time_now_str, 20, "%Y-%m-%d %H:%M:%S", localtime(&the_time_now));
+    TEST_LOG("mock") "Performing task %s at %d (%s).\n", task->type, the_time_now, time_now_str);
+
     __real_task_perform(scheduler, task, context);
 }
 int __wrap_metastorageget(const char* name, void* item)
