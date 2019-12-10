@@ -28,6 +28,7 @@
 #include "signer/zone.h"
 #include <alloca.h>
 #include <stdlib.h>
+#include <time.h>
 
 
 const char *ZONE_TEMPLATE = R"(
@@ -79,18 +80,37 @@ void assert_uint32_ptr_equal(const char* field_name, uint32_t *actual, uint32_t 
 
 int check_zone_serials(zone_type *actual, zone_type *expected)
 {
+    fprintf(stderr, "XIMON: checking expectations..\n");
     assert_string_equal(actual->name, expected->name);
     ASSERT_UINT32_PTR_EQUAL(actual->nextserial,     expected->nextserial);
     ASSERT_UINT32_PTR_EQUAL(actual->inboundserial,  expected->inboundserial);
     // ASSERT_UINT32_PTR_EQUAL(actual->outboundserial, expected->outboundserial);
 }
 
-// DEFINE_SIGNED_ZONE_CHECK_RETURNS_ZERO(expect_our_zone_is_output, strcmp(zone->name, MOCK_ZONE_NAME));
+// int get_soa_diff(zone_type *zone)
+// {
+//     if (!zone->inboundserial || !zone->outboundserial) fail();
+//     fprintf(stderr, "XIMON: in=%u out=%u\n", *(zone->inboundserial), *(zone->outboundserial));
+//     // return *(zone->outboundserial) - *(zone->inboundserial);
+//     return 2;
+// }
+
+uint32_t safe_get_outbound_serial(zone_type *zone)
+{
+    if (!zone->outboundserial) {
+        fail();
+    } else {
+        return *(zone->outboundserial);
+    }
+}
+
+DEFINE_SIGNED_ZONE_CHECK_RETURNS_ZERO(expect_our_zone_is_output, strcmp(zone->name, MOCK_ZONE_NAME));
 // DEFINE_SIGNED_ZONE_CHECK_WITH_OP(expect_next_serial, zone->nextserial ? *(zone->nextserial) : fail()), !=);
 // DEFINE_SIGNED_ZONE_CHECK_WITH_OP(expect_inbound_serial, zone->inboundserial ? *(zone->inboundserial) : fail()), !=);
-// DEFINE_SIGNED_ZONE_CHECK_WITH_OP(expect_outbound_serial, zone->outboundserial ? *(zone->outboundserial) : fail()), !=);
-DEFINE_SIGNED_ZONE_CHECK_WITH_FUNC(expect_output_zone_serials, check_zone_serials);
-
+DEFINE_SIGNED_ZONE_CHECK_WITH_OP(expect_outbound_serial, safe_get_outbound_serial(zone), !=);
+// DEFINE_SIGNED_ZONE_CHECK_WITH_FUNC(expect_output_zone_serials, check_zone_serials);
+// DEFINE_SIGNED_ZONE_CHECK_WITH_OP(expect_soa_serial_date_incremented, get_soa_diff(zone), !=);
+// DEFINE_SIGNED_ZONE_CHECK_WITH_FUNC(expect_soa_serials, check_zone_serials);
 
 // This cannot be used at present with the develop branch because sig_count is
 // never updated. This is a regression compared to the 2.1.x branch.
@@ -104,66 +124,111 @@ uint32_t *dup_serial(uint32_t serial, uint32_t *new_mem) {
 }
 
 
-E2E_TEST_BEGIN(load_zone_file)
-    const char *zone_soa_serial = "2019111801";
+E2E_TEST_BEGIN(datecounter_serial)
+    const char *zone_soa_serial = "20180101";
     uint32_t zone_soa_serial_num = atol(zone_soa_serial);
     const char *replacements[] = { MOCK_ZONE_NAME, zone_soa_serial };
     const char *test_zone = from_template(ZONE_TEMPLATE, replacements);
 
     // Given an unsigned input zone
-    zone_type *zone = e2e_configure_mocks(state, test_zone, E2E_VIEWSTATE_W_OKAY);
+    zone_type *zone = e2e_configure_mocks(state, test_zone, E2E_VIEWSTATE_NO_RW);
 
     // When it is signed using the 'datecounter' soa serial algorithm
     zone->signconf->soa_serial = strdup("datecounter");
     zone->signconf->last_modified = 1;
-    will_return_always(__wrap_time_now, __real_time_now());
 
-    // Expect the serial number to be
-    expect_output_zone_serials(&((zone_type) {
-        .name           = zone->name,
-        .nextserial     = NULL,
-        .inboundserial  = DUP_SERIAL(zone_soa_serial_num),
-        .outboundserial = DUP_SERIAL(zone_soa_serial_num+1)
-    }));
+    // While the worker perform tasks, advance time day by day in January,
+    // such that each sign task occurs on a new day.
+    char timebuf[9], soa_serial[11];
+    bool zone_read = false;
+    for (int d = 1; d <= 30; d++) {
+        // arrange for the date that ODS thinks it is today to advance when the
+        // next task is performed.
+        snprintf(timebuf, 9, "201901%2.2d", d);
+        will_return(__wrap_task_perform, strdup(timebuf));
 
-    // Go!
-    e2e_go(state, TASK_READ, TASK_SIGN, TASK_WRITE, TASK_STOP);
+        // if the zone has not been read yet, expect it to be read
+        if (!zone_read) {
+            will_return(__wrap_task_perform, TASK_READ);
+            zone_read = true;
+        }
+
+        // indicate that we expect the next two tasks that will be performed
+        // will be SIGN and then WRITE
+        will_return(__wrap_task_perform, TASK_SIGN);
+        will_return(__wrap_task_perform, TASK_WRITE);
+
+        // expect that when the zone is written that the outbound serial will
+        // be the first of 0-99 serial numbers for the current (mocked) date.
+        snprintf(soa_serial, 11, "201901%2.2d00", d);
+        expect_outbound_serial(atol(soa_serial));
+    }
+
+    // Run the worker - arrange for it to stop after the tasks define above.
+    e2e_go(state, TASK_STOP);
 E2E_TEST_END
 
 
-E2E_TEST_BEGIN(load_zone_file2)
-    const char *zone_soa_serial = "2019111801";
-    uint32_t zone_soa_serial_num = atol(zone_soa_serial);
-    const char *replacements[] = { MOCK_ZONE_NAME, zone_soa_serial };
-    const char *test_zone = from_template(ZONE_TEMPLATE, replacements);
+// E2E_TEST_BEGIN(load_zone_file)
+//     const char *zone_soa_serial = "2019111801";
+//     uint32_t zone_soa_serial_num = atol(zone_soa_serial);
+//     const char *replacements[] = { MOCK_ZONE_NAME, zone_soa_serial };
+//     const char *test_zone = from_template(ZONE_TEMPLATE, replacements);
 
-    // sleeping >0.5 seconds and then loading state which contains an expiry
-    // time for a record in the zone to be signed (in this case bill.MOCKZONE.)
-    // causes an assert:
-    // src/views/recordset.c:623: names_recordsetexpiry: Assertion `record->expiry == NULL' failed.
-    usleep(600000);
+//     // Given an unsigned input zone
+//     zone_type *zone = e2e_configure_mocks(state, test_zone, E2E_VIEWSTATE_W_OKAY);
 
-    // Given an unsigned input zone and prior state
-    zone_type *zone = e2e_configure_mocks(state, test_zone, E2E_VIEWSTATE_R_OKAY);
+//     // When it is signed using the 'datecounter' soa serial algorithm
+//     zone->signconf->soa_serial = strdup("datecounter");
+//     zone->signconf->last_modified = 1;
+//     will_return_always(__wrap_time_now, __real_time_now());
 
-    // When it is signed using the 'datecounter' soa serial algorithm
-    zone->signconf->soa_serial = strdup("datecounter");
-    zone->signconf->last_modified = 1;
-    will_return_always(__wrap_time_now, __real_time_now());
+//     // Expect the serial number to be
+//     expect_output_zone_serials(&((zone_type) {
+//         .name           = zone->name,
+//         .nextserial     = NULL,
+//         .inboundserial  = DUP_SERIAL(zone_soa_serial_num),
+//         .outboundserial = DUP_SERIAL(zone_soa_serial_num+1)
+//     }));
 
-    // Expect the serial number to be
-    expect_output_zone_serials(&((zone_type) {
-        .name           = zone->name,
-        .nextserial     = NULL,
-        .inboundserial  = DUP_SERIAL(zone_soa_serial_num),
-        .outboundserial = DUP_SERIAL(zone_soa_serial_num+1)
-    }));
-
-    // Go!
-    e2e_go(state, TASK_READ, TASK_SIGN, TASK_WRITE, TASK_STOP);
-E2E_TEST_END
+//     // Go!
+//     e2e_go(state, TASK_READ, TASK_SIGN, TASK_WRITE, TASK_STOP);
+// E2E_TEST_END
 
 
-E2E_TEST_BEGIN(cleanup_view_state_tmp_file)
-    unlink(MOCK_VIEW_STATE_PATH);
-E2E_TEST_END
+// E2E_TEST_BEGIN(load_zone_file2)
+//     const char *zone_soa_serial = "2019111801";
+//     uint32_t zone_soa_serial_num = atol(zone_soa_serial);
+//     const char *replacements[] = { MOCK_ZONE_NAME, zone_soa_serial };
+//     const char *test_zone = from_template(ZONE_TEMPLATE, replacements);
+
+//     // sleeping >0.5 seconds and then loading state which contains an expiry
+//     // time for a record in the zone to be signed (in this case bill.MOCKZONE.)
+//     // causes an assert:
+//     // src/views/recordset.c:623: names_recordsetexpiry: Assertion `record->expiry == NULL' failed.
+//     usleep(600000);
+
+//     // Given an unsigned input zone and prior state
+//     zone_type *zone = e2e_configure_mocks(state, test_zone, E2E_VIEWSTATE_R_OKAY);
+
+//     // When it is signed using the 'datecounter' soa serial algorithm
+//     zone->signconf->soa_serial = strdup("datecounter");
+//     zone->signconf->last_modified = 1;
+//     will_return_always(__wrap_time_now, __real_time_now());
+
+//     // Expect the serial number to be
+//     expect_output_zone_serials(&((zone_type) {
+//         .name           = zone->name,
+//         .nextserial     = NULL,
+//         .inboundserial  = DUP_SERIAL(zone_soa_serial_num),
+//         .outboundserial = DUP_SERIAL(zone_soa_serial_num+1)
+//     }));
+
+//     // Go!
+//     e2e_go(state, TASK_READ, TASK_SIGN, TASK_WRITE, TASK_STOP);
+// E2E_TEST_END
+
+
+// E2E_TEST_BEGIN(cleanup_view_state_tmp_file)
+//     unlink(MOCK_VIEW_STATE_PATH);
+// E2E_TEST_END
