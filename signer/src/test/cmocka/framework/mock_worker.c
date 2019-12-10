@@ -147,6 +147,8 @@ void __wrap_task_perform(schedule_type* scheduler, task_type* task, void* contex
     }
     assert_string_equal(expected_task_type, task->type);
 
+    ignore_function_calls(mock_C_Sign);
+    ignore_function_calls(__wrap_adapter_write);
 
     time_t the_time_now = time_now();
     char time_now_str[20];
