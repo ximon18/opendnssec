@@ -52,7 +52,10 @@ void setup_mock_worker(e2e_test_state_type *state)
     zone_type* zone = zone_create(tmp_zone_name, LDNS_RR_CLASS_IN);
     free(tmp_zone_name);
 
-    zone->signconf->sig_resign_interval = duration_create_from_string("P1D");
+    zone->signconf->sig_resign_interval = duration_create_from_string("P2D");
+    zone->signconf->sig_refresh_interval = duration_create_from_string("P7D");
+    zone->signconf->sig_validity_default = duration_create_from_string("P14D");
+    zone->signconf->sig_validity_denial = duration_create_from_string("P14D");
     zone->signconf->keys = keylist_create(zone->signconf);
     zone->signconf->nsec_type = LDNS_RR_TYPE_NSEC;
     zone->adoutbound = adapter_create("MOCK_CONFIG_STR", -1, 0);
