@@ -140,6 +140,8 @@ void __wrap_schedule_unscheduletask(schedule_type* schedule, task_id type, const
 
 void __wrap_task_perform(schedule_type* scheduler, task_type* task, void* context)
 {
+    static int sign_count = 0;
+
     MOCK_ANNOUNCE();
 
     task_id expected_task_type = mock();
@@ -158,6 +160,22 @@ void __wrap_task_perform(schedule_type* scheduler, task_type* task, void* contex
     }
 
     assert_string_equal(expected_task_type, task->type);
+
+    if (expected_task_type == TASK_SIGN) sign_count++;
+    if (sign_count == 2) {
+        // e2e_test_state_type *c = (e2e_test_state_type *) context;
+        struct worker_context *c = (struct worker_context *) context;
+        zone_type *z = c->zone;
+        z->nextserial = malloc(sizeof(uint32_t));
+        *(z->nextserial) = 2019010101;
+    } else if (sign_count > 2) {
+        struct worker_context *c = (struct worker_context *) context;
+        zone_type *z = c->zone;
+        if (z->nextserial) {
+            free(z->nextserial);
+            z->nextserial = 0;
+        }
+    }
 
     ignore_function_calls(mock_C_Sign);
     ignore_function_calls(__wrap_adapter_write);

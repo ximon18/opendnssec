@@ -117,11 +117,35 @@ DEFINE_SIGNED_ZONE_CHECK_WITH_OP(expect_outbound_serial, safe_get_outbound_seria
 // DEFINE_SIGNED_ZONE_CHECK(expect_sig_count, zone->stats->sig_count, !=);
 
 
-#define DUP_SERIAL(serial) dup_serial(serial, alloca(sizeof(uint32_t)))
-uint32_t *dup_serial(uint32_t serial, uint32_t *new_mem) {
+// Needs to be a macro s that alloca() is called in the context of the caller.
+#define SERIALDUP_LOCAL(serial) serialdup_local(serial, alloca(sizeof(uint32_t)))
+uint32_t *serialdup_local(uint32_t serial, uint32_t *new_mem) {
     *new_mem = serial;
     return new_mem;
 }
+
+
+#define STRDUPA(s) strcpy(alloca(strlen(s)+1), s)
+
+
+const char *static_vsnprintf_20(const char *format, ...)
+{
+    static char buf[20];
+    int len = 0;
+    va_list v;
+
+    va_start(v, format);
+    len = vsnprintf(buf, 20, format, v);
+    va_end(v);
+
+	if (len < 0) fail();
+
+    return buf;
+}
+
+#define SCHEDULE_LEAP(...) will_return(__wrap_task_perform, STRDUPA(static_vsnprintf_20(__VA_ARGS__)))
+#define EXPECT_TASK(task)  will_return(__wrap_task_perform, task)
+#define EXPECT_SERIAL(...) expect_outbound_serial(atol(static_vsnprintf_20(__VA_ARGS__)))
 
 
 E2E_TEST_BEGIN(datecounter_serial)
@@ -139,29 +163,32 @@ E2E_TEST_BEGIN(datecounter_serial)
 
     // While the worker perform tasks, advance time day by day in January,
     // such that each sign task occurs on a new day.
-    char timebuf[9], soa_serial[11];
+    char timebuf[20], soa_serial[11];
     bool zone_read = false;
     for (int d = 1; d <= 30; d++) {
         // arrange for the date that ODS thinks it is today to advance when the
         // next task is performed.
-        snprintf(timebuf, 9, "201901%2.2d", d);
-        will_return(__wrap_task_perform, strdup(timebuf));
+        SCHEDULE_LEAP("2019-01-%2.2d", d);
 
-        // if the zone has not been read yet, expect it to be read
+        // if the zone read expectatin has not been set yet, set it now
         if (!zone_read) {
-            will_return(__wrap_task_perform, TASK_READ);
+            EXPECT_TASK(TASK_READ);
             zone_read = true;
         }
 
         // indicate that we expect the next two tasks that will be performed
         // will be SIGN and then WRITE
-        will_return(__wrap_task_perform, TASK_SIGN);
-        will_return(__wrap_task_perform, TASK_WRITE);
+        EXPECT_TASK(TASK_SIGN);
+        EXPECT_TASK(TASK_WRITE);
 
         // expect that when the zone is written that the outbound serial will
         // be the first of 0-99 serial numbers for the current (mocked) date.
-        snprintf(soa_serial, 11, "201901%2.2d00", d);
-        expect_outbound_serial(atol(soa_serial));
+        EXPECT_SERIAL("201901%2.2d00", d);
+
+        SCHEDULE_LEAP("2019-01-%2.2d 12:00:00", d);
+        EXPECT_TASK(TASK_SIGN);
+        EXPECT_TASK(TASK_WRITE);
+        EXPECT_SERIAL("201901%2.2d01", d);
     }
 
     // Run the worker - arrange for it to stop after the tasks define above.
@@ -187,8 +214,8 @@ E2E_TEST_END
 //     expect_output_zone_serials(&((zone_type) {
 //         .name           = zone->name,
 //         .nextserial     = NULL,
-//         .inboundserial  = DUP_SERIAL(zone_soa_serial_num),
-//         .outboundserial = DUP_SERIAL(zone_soa_serial_num+1)
+//         .inboundserial  = SERIALDUP_LOCAL(zone_soa_serial_num),
+//         .outboundserial = SERIALDUP_LOCAL(zone_soa_serial_num+1)
 //     }));
 
 //     // Go!
@@ -220,8 +247,8 @@ E2E_TEST_END
 //     expect_output_zone_serials(&((zone_type) {
 //         .name           = zone->name,
 //         .nextserial     = NULL,
-//         .inboundserial  = DUP_SERIAL(zone_soa_serial_num),
-//         .outboundserial = DUP_SERIAL(zone_soa_serial_num+1)
+//         .inboundserial  = SERIALDUP_LOCAL(zone_soa_serial_num),
+//         .outboundserial = SERIALDUP_LOCAL(zone_soa_serial_num+1)
 //     }));
 
 //     // Go!
