@@ -51,3 +51,6 @@ endif
 
 analyze:
 	cd signer && $(MAKE) $(AM_MAKEFLAGS) analyze
+
+e2etest: all
+	cd signer && $(MAKE) $(AM_MAKEFLAGS) e2etest
