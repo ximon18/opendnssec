@@ -59,7 +59,8 @@ RUN apt-get -y install --no-install-recommends \
     # OpenDNSSEC 2.2.x dependencies
     libmicrohttpd-dev \
     libjansson-dev \
-    libyaml-dev
+    libyaml-dev \
+    libcunit1-dev
 
 # Setup SoftHSM v2.
 # Based on: https://wiki.opendnssec.org/display/SoftHSMDOCS/SoftHSM+Documentation+v2
