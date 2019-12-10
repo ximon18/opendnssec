@@ -54,7 +54,7 @@ void set_mock_time_now_from_str(char *str)
 {
     struct tm tm;
     memset(&tm, 0, sizeof(struct tm));
-    strptime(str, "%Y%m%d", &tm);
+    strptime(str, "%Y-%m-%d %H:%M:%S", &tm);
     set_mock_time_now_value(mktime(&tm));
 }
 
