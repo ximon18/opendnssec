@@ -478,43 +478,6 @@ time_leaped(void)
 }
 
 /**
- * copycode: This code is based on the EXAMPLE in the strftime manual.
- *
- */
-uint32_t
-time_datestamp(time_t tt, const char* format, char** str)
-{
-    time_t t;
-    struct tm datetime;
-    struct tm *tmp;
-    uint32_t ut = 0;
-    char outstr[32];
-
-    if (tt) {
-        t = tt;
-    } else {
-        t = time_now();
-    }
-
-    tmp = localtime_r(&t,&datetime);
-    if (tmp == NULL) {
-        ods_log_error("[%s] time_datestamp: localtime_r() failed", duration_str);
-        return 0;
-    }
-
-    if (strftime(outstr, sizeof(outstr), format, tmp) == 0) {
-        ods_log_error("[%s] time_datestamp: strftime() failed", duration_str);
-        return 0;
-    }
-
-    ut = (uint32_t) strtoul(outstr, NULL, 10);
-    if (str) {
-        *str = strdup(outstr);
-    }
-    return ut;
-}
-
-/**
  * Version of ctime_r that does not feature a trailing '\n' character
  * buf must be allocated and at least 26 bytes!
  */

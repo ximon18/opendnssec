@@ -10,7 +10,7 @@ libcompat_a_SOURCES = \
 	b64_ntop.c b64_pton.c \
 	clientpipe.c clientpipe.h \
 	compat.h \
-	duration.c duration.h \
+	duration.c duration2.c duration.h \
 	file.c file.h \
 	locks.c locks.h \
 	log.c log.h \
