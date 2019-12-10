@@ -30,6 +30,7 @@
 
 
 void set_mock_time_now_value(time_t t);
+void set_mock_time_now_from_str(char *str);
 
 
 #endif

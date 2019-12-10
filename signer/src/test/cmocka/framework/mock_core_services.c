@@ -34,7 +34,28 @@
 
 void set_mock_time_now_value(time_t t)
 {
-    will_return(__wrap_time_now, t);
+    char str[21];
+    struct tm *tmp;
+    tmp = localtime(&t);
+    if (tmp && strftime(str, sizeof(str), "%Y-%m-%d %H:%M:%S", tmp) > 0) {
+        TEST_LOG("mock") "Advancing time to %d (%s)\n", t, str);
+        // Change every time_now() value returned, as the caller doesn't know
+        // how many times time_now() will be called. To change the current time
+        // during a test use modified CMocka which allows will_return_always()
+        // to be called again to update the always return value. See:
+        //   https://gitlab.com/cmocka/cmocka/merge_requests/21
+        will_return_always(__wrap_time_now, t);
+    } else {
+        fail();
+    }
+}
+
+void set_mock_time_now_from_str(char *str)
+{
+    struct tm tm;
+    memset(&tm, 0, sizeof(struct tm));
+    strptime(str, "%Y%m%d", &tm);
+    set_mock_time_now_value(mktime(&tm));
 }
 
 
