@@ -1,0 +1,84 @@
+LIBCMOCKA = -lcmocka
+EXTRA_PROGRAMS = e2etest
+
+e2etest_SOURCES=   test/cmocka/framework/main.c $(SIGNER_NON_MAIN_SOURCES)
+e2etest_SOURCES+=  test/cmocka/framework/cmocka.c
+e2etest_SOURCES+=  test/cmocka/framework/test_framework.c
+e2etest_SOURCES+=  test/cmocka/framework/mock_logging.c
+e2etest_SOURCES+=  test/cmocka/framework/mock_core_services.c
+e2etest_SOURCES+=  test/cmocka/framework/mock_engine.c
+e2etest_SOURCES+=  test/cmocka/framework/mock_hsm.c
+e2etest_SOURCES+=  test/cmocka/framework/mock_inputs.c
+e2etest_SOURCES+=  test/cmocka/framework/mock_outputs.c
+e2etest_SOURCES+=  test/cmocka/framework/mock_worker.c
+e2etest_SOURCES+=  test/cmocka/framework/strings.c
+e2etest_SOURCES+=  test/cmocka/tests/poc_namedb_update_serial_test.c
+e2etest_SOURCES+=  test/cmocka/tests/poc_e2e_test.c
+e2etest_SOURCES+=  cryptoki_compat/pkcs11.h
+e2etest_CPPFLAGS=  $(AM_CPPFLAGS)
+e2etest_CPPFLAGS+= -DTESTING_WITH_MOCKS
+e2etest_CPPFLAGS+= -I$(top_srcdir)/signer/src/test/cmocka/framework
+e2etest_CPPFLAGS+= -I$(top_srcdir)/libhsm/src/lib/cryptoki_compat
+e2etest_LDADD=     $(ods_signerd_LDADD)
+# Override functionality that must be handled differently or disabled when testing
+e2etest_LDFLAGS=   -Wl,--wrap=privdrop
+e2etest_LDFLAGS+=  -Wl,--wrap=pthread_mutex_init
+e2etest_LDFLAGS+=  -Wl,--wrap=pthread_mutex_lock
+e2etest_LDFLAGS+=  -Wl,--wrap=pthread_mutex_unlock
+e2etest_LDFLAGS+=  -Wl,--wrap=pthread_cond_init
+e2etest_LDFLAGS+=  -Wl,--wrap=time_now
+e2etest_LDFLAGS+=  -Wl,--wrap=ods_fatal_exit
+e2etest_LDFLAGS+=  -Wl,--wrap=ods_log_verbose
+e2etest_LDFLAGS+=  -Wl,--wrap=ods_log_debug
+e2etest_LDFLAGS+=  -Wl,--wrap=ods_log_deeebug
+e2etest_LDFLAGS+=  -Wl,--wrap=ods_log_info
+e2etest_LDFLAGS+=  -Wl,--wrap=ods_log_warning
+e2etest_LDFLAGS+=  -Wl,--wrap=ods_log_error
+e2etest_LDFLAGS+=  -Wl,--wrap=ods_log_crit
+e2etest_LDFLAGS+=  -Wl,--wrap=ods_log_get_level
+e2etest_LDFLAGS+=  -Wl,--wrap=ods_fopen
+e2etest_LDFLAGS+=  -Wl,--wrap=ods_fclose
+e2etest_LDFLAGS+=  -Wl,--wrap=ods_fgetc
+e2etest_LDFLAGS+=  -Wl,--wrap=ods_chown
+e2etest_LDFLAGS+=  -Wl,--wrap=util_write_pidfile
+
+e2etest_LDFLAGS+=  -Wl,--wrap=logger_configurecls
+
+e2etest_LDFLAGS+=  -Wl,--wrap=hsm_open2
+e2etest_LDFLAGS+=  -Wl,--wrap=hsm_close
+e2etest_LDFLAGS+=  -Wl,--wrap=hsm_check_context
+e2etest_LDFLAGS+=  -Wl,--wrap=hsm_create_context
+e2etest_LDFLAGS+=  -Wl,--wrap=hsm_destroy_context
+e2etest_LDFLAGS+=  -Wl,--wrap=hsm_get_dnskey
+e2etest_LDFLAGS+=  -Wl,--wrap=hsm_get_error
+e2etest_LDFLAGS+=  -Wl,--wrap=hsm_attach
+e2etest_LDFLAGS+=  -Wl,--wrap=keycache_lookup
+
+e2etest_LDFLAGS+=  -Wl,--wrap=adapter_write
+e2etest_LDFLAGS+=  -Wl,--wrap=janitor_thread_create
+e2etest_LDFLAGS+=  -Wl,--wrap=schedule_task
+e2etest_LDFLAGS+=  -Wl,--wrap=schedule_pop_task
+e2etest_LDFLAGS+=  -Wl,--wrap=schedule_unschedule_task
+e2etest_LDFLAGS+=  -Wl,--wrap=task_perform
+e2etest_LDFLAGS+=  -Wl,--wrap=zone_backup2
+
+e2etest_LDFLAGS+=  -Wl,--wrap=cmdhandler_cleanup
+e2etest_LDFLAGS+=  -Wl,--wrap=dnshandler_cleanup
+e2etest_LDFLAGS+=  -Wl,--wrap=xfrhandler_cleanup
+e2etest_LDFLAGS+=  -Wl,--wrap=engine_config_cleanup
+
+e2etest_LDFLAGS+=  -Wl,--wrap=metastorageget
+e2etest_LDFLAGS+=  -Wl,--wrap=metastorageput
+
+# Wrap direct I/O calls to enable interception of views.c and marshalling.c
+# direct .state file access.
+e2etest_LDFLAGS+=  -Wl,--wrap=open
+e2etest_LDFLAGS+=  -Wl,--wrap=openat
+e2etest_LDFLAGS+=  -Wl,--wrap=read
+e2etest_LDFLAGS+=  -Wl,--wrap=write
+e2etest_LDFLAGS+=  -Wl,--wrap=close
+e2etest_LDFLAGS+=  -Wl,--wrap=renameat
+
+# The next one is a cmocka function that is too noisy and offers no way to
+# silence it, but by wrapping it we can silence it.
+e2etest_LDFLAGS+=  -Wl,--wrap=print_message

@@ -14,3 +14,6 @@ doxygen:
 
 analyze:
 	cd src && $(MAKE) $(AM_MAKEFLAGS) analyze
+
+e2etest:
+	cd src && $(MAKE) $(AM_MAKEFLAGS) e2etest
