@@ -138,13 +138,22 @@ void __wrap_schedule_unscheduletask(schedule_type* schedule, task_id type, const
 void __wrap_task_perform(schedule_type* scheduler, task_type* task, void* context)
 {
     MOCK_ANNOUNCE();
+
     task_id expected_task_type = mock();
+
     if (expected_task_type == TASK_STOP) {
-        TEST_LOG("mock") "Test end scheduled, ignoring scheduled task %s.\n", task->type);
+        TEST_LOG("mock") "Test end requested, ignoring scheduled task %s.\n", task->type);
         worker_type* worker = mock();
         worker->need_to_exit = 1;
         return NULL;
     }
+
+    if (expected_task_type[0] >= '0' && expected_task_type[0] <= '9') {
+        TEST_LOG("mock") "Time change requested, setting time to %s.\n", expected_task_type);
+        set_mock_time_now_from_str(expected_task_type);
+        expected_task_type = mock();
+    }
+
     assert_string_equal(expected_task_type, task->type);
 
     ignore_function_calls(mock_C_Sign);
