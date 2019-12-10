@@ -89,6 +89,7 @@ LIBCMOCKA = -lcmocka
 check_PROGRAMS = test/signer_tests
 TESTS = test/signer_tests
 test_signer_tests_SOURCES=   test/cmocka/framework/main.c $(SIGNER_NON_MAIN_SOURCES)
+test_signer_tests_SOURCES+=  test/cmocka/framework/cmocka.c
 test_signer_tests_SOURCES+=  test/cmocka/framework/test_framework.c
 test_signer_tests_SOURCES+=  test/cmocka/framework/mock_logging.c
 test_signer_tests_SOURCES+=  test/cmocka/framework/mock_core_services.c
@@ -105,7 +106,7 @@ test_signer_tests_CPPFLAGS=  $(AM_CPPFLAGS)
 test_signer_tests_CPPFLAGS+= -DTESTING_WITH_MOCKS
 test_signer_tests_CPPFLAGS+= -I$(top_srcdir)/signer/src/test/cmocka/framework
 test_signer_tests_CPPFLAGS+= -I$(top_srcdir)/libhsm/src/lib/cryptoki_compat
-test_signer_tests_LDADD=     $(ods_signerd_LDADD) $(LIBCMOCKA)
+test_signer_tests_LDADD=     $(ods_signerd_LDADD)
 # Override functionality that must be handled differently or disabled when testing
 test_signer_tests_LDFLAGS=   -Wl,--wrap=privdrop
 test_signer_tests_LDFLAGS+=  -Wl,--wrap=pthread_mutex_init
