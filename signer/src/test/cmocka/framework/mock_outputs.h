@@ -92,6 +92,16 @@
             0); \
     }
 
+#define DEFINE_SIGNED_ZONE_CHECK_RETURNS_ONE(func_name, test_field) \
+    DEFINE_SIGNED_ZONE_PLUGIN_WITH_OP(func_name, test_field, !=) \
+    void func_name(void) \
+    { \
+        expect_check( \
+            __wrap_adapter_write, \
+            zone, \
+            func_name ## _expect_check_custom_parameter_checking_func, \
+            1); \
+    }
 
 #define DEFINE_SIGNED_ZONE_CHECK_WITH_OP(func_name, test_field, test_op) \
     DEFINE_SIGNED_ZONE_PLUGIN_WITH_OP(func_name, test_field, test_op) \
