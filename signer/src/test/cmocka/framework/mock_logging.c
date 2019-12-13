@@ -30,7 +30,7 @@
 
 
 #define DEFAULT_LOG_LEVEL      "warning"
-#define LOG_LEVELS_LOW_TO_HIGH "mock,deeebug,debug,verbose,info,warning,error,crit,fatal"
+#define LOG_LEVELS_LOW_TO_HIGH "deeebug,debug,mock,verbose,info,warning,error,crit,fatal"
 
 #define WRAP_VASTART(format) \
         va_list args; \
