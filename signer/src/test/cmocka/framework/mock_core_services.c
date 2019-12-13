@@ -83,6 +83,10 @@ int __wrap_pthread_mutex_unlock (pthread_mutex_t *__mutex)
 {
     return 0;
 }
+int __wrap_pthread_cond_broadcast (pthread_cond_t *__cond)
+{
+    return 0;
+}
 time_t __wrap_time_now(void)
 {
     MOCK_ANNOUNCE();
