@@ -27,9 +27,18 @@
 #define TEST_MOCK_WORKER_H
 
 
+#include "test_framework.h"
+
+
+#define EXPECT_TASK(task)           will_return(__wrap_task_perform, task)
+#define WILL_INVOKE_CB(cb, cb_data) will_return(__wrap_task_perform, STRDUPA(vsnprintf_20("mock:%lu", cb))); \
+                                    will_return(__wrap_task_perform, cb_data)
+
+
 void setup_mock_worker(e2e_test_state_type* state);
 void teardown_mock_worker(e2e_test_state_type* state);
 zone_type * configure_mock_worker(e2e_test_state_type* state, const char *input_zone);
+void force_read(e2e_test_state_type* state, const char *input_zone);
 
 
 #endif

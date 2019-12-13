@@ -34,12 +34,12 @@
 // ----------------------------------------------------------------------------
 
 
-// Disable outputs during testing
+// Provide a hook point for examining the zone prior to writing it out.
 ods_status __wrap_adapter_write(void* zone) {
     MOCK_ANNOUNCE();
     function_called();
     check_expected(zone);
-    return ODS_STATUS_OK;
+    return __real_adapter_write(zone);
 }
 ods_status __wrap_zone_backup2(zone_type* zone) {
     MOCK_ANNOUNCE();

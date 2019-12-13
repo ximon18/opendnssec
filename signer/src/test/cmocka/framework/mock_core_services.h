@@ -31,6 +31,8 @@
 
 void set_mock_time_now_value(time_t t);
 void set_mock_time_now_from_str(char *str);
+void set_mock_io_buffer(const char* filename, const char* contents);
+void cleanup_mock_io_buffers(void);
 
 
 #endif

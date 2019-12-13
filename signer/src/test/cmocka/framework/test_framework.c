@@ -26,6 +26,7 @@
 #include "test_framework.h"
 #include "mock_hsm.h"
 #include "mock_worker.h"
+#include "mock_core_services.h"
 
 
 #include <pkcs11.h>
@@ -155,5 +156,32 @@ int unittest_teardown(void **state)
 {
     zone_type *zone = (zone_type *)(*state);
     zone_cleanup(zone);
+    cleanup_mock_io_buffers();
     return 0;
+}
+
+void* memdup(const void* mem, size_t size) { 
+    void* out = malloc(size);
+    if(!out) fail();
+    return memcpy(out, mem, size);
+}
+
+uint32_t *serialdup(uint32_t serial, uint32_t *new_mem) {
+    *new_mem = serial;
+    return new_mem;
+}
+
+const char *vsnprintf_20(const char *format, ...)
+{
+    static char buf[20];
+    int len = 0;
+    va_list v;
+
+    va_start(v, format);
+    len = vsnprintf(buf, 20, format, v);
+    va_end(v);
+
+	if (len < 0) fail();
+
+    return buf;
 }

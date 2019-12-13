@@ -32,6 +32,36 @@
 #include "test_framework.h"
 
 
+#define IOBUF_DEF_SIZE          2048
+static const char *MODE_R     = "r";
+static const char *MODE_RPLUS = "r+";
+static const char *MODE_W     = "w";
+static const char *MODE_WPLUS = "w+";
+static const char *MODE_A     = "a";
+static const char *MODE_APLUS = "a+";
+
+
+typedef struct  {
+    char *filename;
+    char *buf;
+    size_t size;
+} mock_io_buf;
+
+static mock_io_buf* mock_io_buffers = NULL;
+static int mock_io_buffers_count = 0;
+
+
+// ----------------------------------------------------------------------------
+static mock_io_buf * get_mock_io_buffer(const char* filename);
+static mock_io_buf * get_or_add_mock_io_buffer(const char *filename, size_t size);
+static FILE *        get_file_ptr_by_mode(const char *filename, const char* modes);
+static const char *  open_flag_2_mode(int flag);
+
+
+// ----------------------------------------------------------------------------
+// public functions:
+// ----------------------------------------------------------------------------
+
 void set_mock_time_now_value(time_t t)
 {
     char str[21];
@@ -56,6 +86,83 @@ void set_mock_time_now_from_str(char *str)
     memset(&tm, 0, sizeof(struct tm));
     strptime(str, "%Y-%m-%d %H:%M:%S", &tm);
     set_mock_time_now_value(mktime(&tm));
+}
+
+void cleanup_mock_io_buffers(void)
+{
+    for (int i = 0; i < mock_io_buffers_count; i++) {
+        mock_io_buf *buf = &mock_io_buffers[i];
+        free(buf->filename);
+        free(buf->buf);
+        buf->size = 0;
+    }
+    free(mock_io_buffers);
+}
+
+// filename and contents will be copied so the caller remains responsible for
+// free()'ing their copies of these buffers.
+void set_mock_io_buffer(const char* filename, const char* contents)
+{
+    size_t size = strlen(contents);
+    mock_io_buf *buf = get_or_add_mock_io_buffer(filename, size);
+
+    if (!buf) fail();
+
+    if (buf->size != size) {
+        buf->buf = realloc(buf->buf, size);
+        buf->size = size;
+    }
+
+    strncpy(buf->buf, contents, size); // does NOT copy the NULL terminator
+}
+
+// ----------------------------------------------------------------------------
+// internal functions:
+// ----------------------------------------------------------------------------
+
+static mock_io_buf * get_mock_io_buffer(const char* filename)
+{
+    for (int i = 0; i < mock_io_buffers_count; i++) {
+        if (0 == strcmp(mock_io_buffers[i].filename, filename)) {
+            return &mock_io_buffers[i];
+        }
+    }
+    return NULL;
+}
+
+static mock_io_buf * get_or_add_mock_io_buffer(const char *filename, size_t size)
+{
+    mock_io_buf *buf = get_mock_io_buffer(filename);
+    if (!buf) {
+        mock_io_buffers = reallocarray(mock_io_buffers, mock_io_buffers_count+1, sizeof(mock_io_buf));
+        if (!mock_io_buffers) fail();
+        buf = &mock_io_buffers[mock_io_buffers_count++];
+        buf->size = size;
+        buf->filename = strdup(filename); if (!buf->filename) fail();
+        buf->buf = calloc(1, size); if (!buf->buf) fail();
+    }
+    return buf;
+}
+
+static FILE * get_file_ptr_by_mode(const char *filename, const char* modes)
+{
+    // in read mode the buffer must already exist, otherwise it is okay to
+    // create an empty one if it doesn't already exist.
+    mock_io_buf *buf = (0 == strcmp(modes, "r") ?
+        get_mock_io_buffer(filename) : 
+        get_or_add_mock_io_buffer(filename, IOBUF_DEF_SIZE));
+    return buf ? fmemopen(buf->buf, buf->size, modes) : NULL;
+}
+
+static const char * open_flag_2_mode(int flag)
+{
+    // mapped per rules described in man fopen
+    if ((flag & (O_WRONLY|O_CREAT|O_TRUNC)) == (O_WRONLY|O_CREAT|O_TRUNC))        return MODE_W;
+    else if ((flag & (O_WRONLY|O_CREAT|O_APPEND)) == (O_WRONLY|O_CREAT|O_APPEND)) return MODE_A;
+    else if ((flag & (O_RDWR|O_CREAT|O_TRUNC)) == (O_RDWR|O_CREAT|O_TRUNC))       return MODE_WPLUS;
+    else if ((flag & (O_RDWR|O_CREAT|O_APPEND)) == (O_RDWR|O_CREAT|O_APPEND))     return MODE_APLUS;
+    else if ((flag & O_RDWR) == O_RDWR)                                           return MODE_RPLUS;
+    else                                                                          return MODE_R;
 }
 
 
@@ -95,28 +202,7 @@ time_t __wrap_time_now(void)
 FILE* __wrap_ods_fopen(const char* file, const char* dir, const char* mode)
 {
     MOCK_ANNOUNCE();
-    if (0 == strcmp(file, MOCK_ZONE_FILE_NAME)) {
-        TEST_LOG("mock") "Returning mock FILE* from ods_fopen() '%s' in dir '%s' with mode '%s'\n", file, dir, mode);
-        return MOCK_POINTER;
-    } else {
-        TEST_LOG("mock") "Deliberately failing to ods_fopen() '%s' in dir '%s' with mode '%s'\n", file, dir, mode);
-        return 0;
-    }
-}
-void __wrap_ods_fclose(FILE* fd)
-{
-    MOCK_ANNOUNCE();
-    // nothing to do
-}
-int __wrap_ods_fgetc(FILE* fd, unsigned int* line_nr)
-{
-    if (fd == MOCK_POINTER) {
-        int c = mock();
-        if ((char)c == '\n') (*line_nr)++;
-        return c;
-    } else {
-        fail();
-    }
+    return get_file_ptr_by_mode(file, mode);
 }
 ods_status __wrap_privdrop(const char *username, const char *groupname, const char *newroot, uid_t* puid, gid_t* pgid)
 {
@@ -138,12 +224,25 @@ ods_status __wrap_parse_file_check(const char* cfgfile, const char* rngfile)
     return ODS_STATUS_OK;
 }
 
+// Wrap direct I/O calls to enable interception of zoneoutput.c file access.
+FILE* __wrap_fopen(const char *__filename, const char * __modes)
+{
+    MOCK_ANNOUNCE();
+    return get_file_ptr_by_mode(__filename, __modes);
+}
+
+int __wrap_rename(const char *__old, const char *__new)
+{
+    MOCK_ANNOUNCE();
+    // pretend to have done the rename
+    return 0;
+}
+
 // Wrap direct I/O calls to enable interception of views.c and marshalling.c
 // direct .state(.tmp) file access.
 int __wrap_open(const char *__path, int __oflag, ...)
 {
     MOCK_ANNOUNCE()
-
     const char *file_ext = strchr(__path, '.');
     const char *mock_target = NULL;
     char *mock_action = NULL;
@@ -210,9 +309,10 @@ int __wrap_close(int __fd)
     MOCK_ANNOUNCE()
     return __fd == MOCK_FD ? 0 : __real_close(__fd);
 }
-int __wrap_renameat(int __oldfd, const char *__old, int __newfd,
-		     const char *__new)
+int __wrap_renameat(
+    int __oldfd, const char *__old, int __newfd, const char *__new)
 {
+    MOCK_ANNOUNCE();
     // pretend to have done the rename
     return 0;
 }

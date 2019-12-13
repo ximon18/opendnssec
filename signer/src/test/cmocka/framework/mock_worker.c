@@ -27,6 +27,7 @@
 #include "mock_worker.h"
 #include "mock_logging.h"
 #include "mock_hsm.h"
+#include "mock_core_services.h"
 #include "daemon/engine.h"
 #include "scheduler/fifoq.h"
 #include "daemon/signertasks.h"
@@ -85,7 +86,8 @@ zone_type * configure_mock_worker(
         zone_type *zone = state->zone;
         zone->signconf_filename = strdup(MOCK_ZONE_SIGNCONF_NAME);
         zone->adinbound = adapter_create(MOCK_ZONE_FILE_NAME, ADAPTER_FILE, 1);
-        set_mock_input_zone_file(input_zone);
+        zone->adoutbound = adapter_create(MOCK_ZONE_FILE_NAME, ADAPTER_FILE, 0);
+        set_mock_io_buffer(MOCK_ZONE_FILE_NAME, input_zone);
 
         zone_start(zone);
 
@@ -94,6 +96,13 @@ zone_type * configure_mock_worker(
     }
 
     return state->zone;
+}
+
+void force_read(e2e_test_state_type* state, const char *input_zone)
+{
+    set_mock_input_zone_file(input_zone);
+    schedule_scheduletask(
+        state->context->engine->taskq, TASK_FORCEREAD, state->zone->name, state->zone, &state->zone->zone_lock, schedule_IMMEDIATELY);
 }
 
 
@@ -144,36 +153,27 @@ void __wrap_task_perform(schedule_type* scheduler, task_type* task, void* contex
 
     MOCK_ANNOUNCE();
 
-    task_id expected_task_type = mock();
+    while (true) {
+        task_id expected_task_type = mock();
 
-    if (expected_task_type == TASK_STOP) {
-        TEST_LOG("mock") "Test end requested, ignoring scheduled task %s.\n", task->type);
-        worker_type* worker = mock();
-        worker->need_to_exit = 1;
-        return NULL;
-    }
-
-    if (expected_task_type[0] >= '0' && expected_task_type[0] <= '9') {
-        TEST_LOG("mock") "Time change requested, setting time to %s.\n", expected_task_type);
-        set_mock_time_now_from_str(expected_task_type);
-        expected_task_type = mock();
-    }
-
-    assert_string_equal(expected_task_type, task->type);
-
-    if (expected_task_type == TASK_SIGN) sign_count++;
-    if (sign_count == 2) {
-        // e2e_test_state_type *c = (e2e_test_state_type *) context;
-        struct worker_context *c = (struct worker_context *) context;
-        zone_type *z = c->zone;
-        z->nextserial = malloc(sizeof(uint32_t));
-        *(z->nextserial) = 2019010101;
-    } else if (sign_count > 2) {
-        struct worker_context *c = (struct worker_context *) context;
-        zone_type *z = c->zone;
-        if (z->nextserial) {
-            free(z->nextserial);
-            z->nextserial = 0;
+        if (expected_task_type == TASK_STOP) {
+            TEST_LOG("mock") "Test end requested, ignoring scheduled task %s.\n", task->type);
+            worker_type* worker = mock();
+            worker->need_to_exit = 1;
+            return;
+        } else if (expected_task_type == strstr(expected_task_type, "mock:")) {
+            // Mock call back detected. Invoke it.
+            // Get the callback address by treating the remainder of the string
+            // as the stringified address of the callback function to invoke.
+            const char *cb_addr_str = &expected_task_type[5];
+            int (*cb_func)(schedule_type *, task_id, const char *, void *) = atol(cb_addr_str);
+            if (cb_func(scheduler, task, context, mock())) {
+                TEST_LOG("mock") "Callback returned 1, ignoring scheduled task %s.\n", task->type);
+                return;
+            }
+        } else {
+            assert_string_equal(expected_task_type, task->type);
+            break;
         }
     }
 

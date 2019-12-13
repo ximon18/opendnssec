@@ -22,6 +22,7 @@ e2etest_CPPFLAGS+= -I$(top_srcdir)/libhsm/src/lib/cryptoki_compat
 e2etest_LDADD=     $(ods_signerd_LDADD)
 # Override functionality that must be handled differently or disabled when testing
 e2etest_LDFLAGS=   -Wl,--wrap=privdrop
+
 e2etest_LDFLAGS+=  -Wl,--wrap=pthread_mutex_init
 e2etest_LDFLAGS+=  -Wl,--wrap=pthread_mutex_lock
 e2etest_LDFLAGS+=  -Wl,--wrap=pthread_mutex_unlock
@@ -39,8 +40,6 @@ e2etest_LDFLAGS+=  -Wl,--wrap=ods_log_error
 e2etest_LDFLAGS+=  -Wl,--wrap=ods_log_crit
 e2etest_LDFLAGS+=  -Wl,--wrap=ods_log_get_level
 e2etest_LDFLAGS+=  -Wl,--wrap=ods_fopen
-e2etest_LDFLAGS+=  -Wl,--wrap=ods_fclose
-e2etest_LDFLAGS+=  -Wl,--wrap=ods_fgetc
 e2etest_LDFLAGS+=  -Wl,--wrap=ods_chown
 e2etest_LDFLAGS+=  -Wl,--wrap=util_write_pidfile
 
@@ -80,6 +79,10 @@ e2etest_LDFLAGS+=  -Wl,--wrap=read
 e2etest_LDFLAGS+=  -Wl,--wrap=write
 e2etest_LDFLAGS+=  -Wl,--wrap=close
 e2etest_LDFLAGS+=  -Wl,--wrap=renameat
+
+# Wrap direct I/O calls to enable interception of writezone() in zoneoutput.c.
+e2etest_LDFLAGS+=  -Wl,--wrap=fopen
+e2etest_LDFLAGS+=  -Wl,--wrap=rename
 
 # The next one is a cmocka function that is too noisy and offers no way to
 # silence it, but by wrapping it we can silence it.

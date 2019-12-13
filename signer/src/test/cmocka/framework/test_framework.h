@@ -32,6 +32,7 @@
 #include <stddef.h>
 #include <setjmp.h>
 #include <cmocka.h>
+#include <alloca.h>
 
 
 #include "scheduler/task.h"
@@ -116,6 +117,16 @@ typedef enum {
 #define MOCK_POINTER             (void*)0xDEADBEEF
 #define MOCK_FD                  1818
 #define TASK_STOP                NULL
+
+
+#define SERIALDUP(serial)   serialdup(serial, malloc(sizeof(uint32_t)))
+#define SERIALDUPA(serial)  serialdup(serial, alloca(sizeof(uint32_t)))
+#define STRDUPA(s)          strcpy(alloca(strlen(s)+1), s)
+
+
+void *       memdup(const void* mem, size_t size);
+uint32_t *   serialdup(uint32_t serial, uint32_t *new_mem);
+const char * vsnprintf_20(const char *format, ...);
 
 
 test_keys_type* e2e_get_mock_keys(void);
