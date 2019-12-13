@@ -106,6 +106,7 @@ typedef enum {
 
 
 #define MOCK_VIEW_STATE_PATH     "e2e_temp.state"
+#define MOCK_CONFIG_STR          "MOCK_CONFIG_STR"
 #define MOCK_ZONE_NAME           "MOCKZONE"
 #define MOCK_ZONE_NAME_STATE     MOCK_ZONE_NAME ".state"
 #define MOCK_ZONE_NAME_STATE_TMP MOCK_ZONE_NAME_STATE ".tmp"

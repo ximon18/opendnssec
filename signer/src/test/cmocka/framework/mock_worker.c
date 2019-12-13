@@ -58,7 +58,7 @@ void setup_mock_worker(e2e_test_state_type *state)
     zone->signconf->sig_validity_denial = duration_create_from_string("P14D");
     zone->signconf->keys = keylist_create(zone->signconf);
     zone->signconf->nsec_type = LDNS_RR_TYPE_NSEC;
-    zone->adoutbound = adapter_create("MOCK_CONFIG_STR", -1, 0);
+    zone->adoutbound = adapter_create(MOCK_CONFIG_STR, -1, 0);
     state->zone = zone;
 
     // create a ZSK and KSK for signing
