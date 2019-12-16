@@ -656,7 +656,7 @@ do_purgezone(zone_type* zone)
 void
 do_outputstatefile(zone_type* zone)
 {
-    /* Refresh the current state jounral file */
+    /* Refresh the current state journal file */
     struct stat statbuf;
     names_view_type baseview;
     char* filename;
