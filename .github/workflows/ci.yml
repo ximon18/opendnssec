@@ -1,12 +1,149 @@
+# Tested locally with nektos/act.
+# See: https://github.com/nektos/act
 name: CI
 
 on: [push]
+
+defaults:
+  run:
+    # see: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
+
+env:
+  DEBIAN_FRONTEND: noninteractive
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Placeholder
-        run: |
-          echo "Placeholder workflow"
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: workspace
 
+      - name: Install pre-requisites
+        run: |
+          apt-get update
+
+          # default-jre is needed for relaxng XML schema support
+          # libcunit1-dev is needed for running unit tests
+          # libldns-dev is needed by OpenDNSSEC
+          # psmisc is needed by the test scripts to run killall
+          # sqlite3 is needed when using SQLite3 as the database for ODS
+
+          apt-get install \
+              -y \
+              --no-install-recommends \
+              --no-install-suggests \
+            default-jre   \
+            libcunit1-dev \
+            libldns-dev   \
+            psmisc        \
+            sqlite3
+
+          pstree -n -p
+
+      - name: Install and start the syslog daemon if needed
+        run: |
+          if [ ! -f /var/log/syslog ]; then
+            apt-get install \
+              -y \
+              --no-install-recommends \
+              --no-install-suggests \
+              syslog-ng
+
+            # Remove PIDs from syslog lines so that ODS test suite syslog line matching works.
+            # See: https://serverfault.com/questions/981150/disable-process-id-showing-in-syslog-ng-logs
+            sed -i -e 's|file("/var/log/syslog")|file("/var/log/syslog" template("$DATE $HOST $PROGRAM: $MESSAGE\\n"))|' /etc/syslog-ng/syslog-ng.conf
+
+            syslog-ng
+          fi
+
+      - name: Setup environment for subsequent steps
+        working-directory: workspace
+        run: |
+          WORKSPACE=$(pwd)
+          INSTALL_ROOT=$(pwd)/ROOT
+          PATH=$PATH:${INSTALL_ROOT}/bin/
+
+          mkdir -p ${INSTALL_ROOT}
+
+          echo "${INSTALL_ROOT}/bin/" >> "$GITHUB_PATH"
+          echo "WORKSPACE=${WORKSPACE}" >> "$GITHUB_ENV"
+          echo "INSTALL_ROOT=${INSTALL_ROOT}" >> "$GITHUB_ENV"
+      
+      - name: Restore cached ROOT
+        uses: actions/cache/restore@v4
+        id: cache-ROOT-restore
+        with:
+          path: ROOT/
+          key: ROOT
+
+      - name: Build and install SoftHSMv2
+        if: steps.cache-ROOT-restore.outputs.cache-hit != 'true'
+        working-directory: workspace
+        run: |
+          wget https://dist.opendnssec.org/source/softhsm-2.6.1.tar.gz
+          tar xzf softhsm-2.6.1.tar.gz
+          cd softhsm-2.6.1
+          ./configure \
+            --prefix=${INSTALL_ROOT} \
+            --sbindir=${INSTALL_ROOT}/bin \
+            --mandir=${INSTALL_ROOT}/man \
+            --disable-non-paged-memory \
+            --with-migrate \
+            --disable-p11-kit \
+            --with-crypto-backend=openssl \
+            --disable-ecc \
+            --disable-gost
+          make install
+
+      - name: Build and install OpenDNSSEC
+        if: steps.cache-ROOT-restore.outputs.cache-hit != 'true'
+        working-directory: workspace
+        run: |
+          testing/build-opendnssec.sh
+
+      - name: Cache built ROOT
+        uses: actions/cache/save@v4
+        id: cache-ROOT-save
+        with:
+          path: ROOT/
+          key: ROOT
+
+      - name: Prepare OpenDNSSEC test suite environment
+        working-directory: workspace/build
+        run: |
+          echo "SVN_REVISION=1" >> "$GITHUB_ENV"
+          echo "" > $INSTALL_ROOT/.botan.ok
+          echo "1" > $INSTALL_ROOT/.botan.build
+          echo "" > $INSTALL_ROOT/.softhsm2.ok
+          echo "1-openssl:1" > $INSTALL_ROOT/.softhsm2.build
+          echo "" > $INSTALL_ROOT/.opendnssec.ok
+          echo "1" > $INSTALL_ROOT/.opendnssec.build
+          cat > $INSTALL_ROOT/etc/softhsm2.conf.build <<-END
+          directories.tokendir = $INSTALL_ROOT/var/lib/softhsm/tokens/
+          objectstore.backend = file
+          log.level = INFO
+          END
+          for f in conf/{addns,conf,kasp,zonelist}.xml
+          do
+            cp $f $INSTALL_ROOT/etc/opendnssec/`basename $f`.build
+          done
+
+      - name: Run the OpenDNSSEC test suite
+        working-directory: workspace/testing
+        run: |
+          export PATH=${INSTALL_ROOT}/sbin:$PATH
+          cd test-cases.d/general.basic.start_stop
+          ls -la
+          ../../test-this.sh || {
+            ls -la
+            cat /var/log/messages
+            for F in $(ls -1 _*); do
+              echo $F
+              cat $F
+            done
+            ls -lR $INSTALL_ROOT
+            pstree -n -p
+          }
