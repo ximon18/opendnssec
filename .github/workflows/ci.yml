@@ -41,21 +41,23 @@ jobs:
             psmisc        \
             sqlite3
 
-      - name: Install and start the syslog daemon if needed
+      - name: Install and start the syslog daemon
         run: |
-          if [ ! -f /var/log/syslog ]; then
-            sudo apt-get install \
-              -y \
-              --no-install-recommends \
-              --no-install-suggests \
-              syslog-ng
+          sudo apt-get install \
+            -y \
+            --no-install-recommends \
+            --no-install-suggests \
+            syslog-ng
 
-            # Remove PIDs from syslog lines so that ODS test suite syslog line matching works.
-            # See: https://serverfault.com/questions/981150/disable-process-id-showing-in-syslog-ng-logs
-            sudo sed -i -e 's|file("/var/log/syslog")|file("/var/log/syslog" template("$DATE $HOST $PROGRAM: $MESSAGE\\n"))|' /etc/syslog-ng/syslog-ng.conf
+          # Remove PIDs from syslog lines so that ODS test suite syslog line matching works.
+          # See: https://serverfault.com/questions/981150/disable-process-id-showing-in-syslog-ng-logs
+          sudo sed -i -e 's|file("/var/log/syslog")|file("/var/log/syslog" template("$DATE $HOST $PROGRAM: $MESSAGE\\n"))|' /etc/syslog-ng/syslog-ng.conf
 
-            sudo syslog-ng
-          fi
+          sudo syslog-ng
+
+          sleep 1s
+
+          sudo chmod a+r /var/log/syslog
 
       - name: Setup environment for subsequent steps
         working-directory: workspace
@@ -128,7 +130,7 @@ jobs:
           ls -la
           ../../test-this.sh || {
             ls -la
-            cat /var/log/messages
+            cat /var/log/syslog
             for F in $(ls -1 _*); do
               echo $F
               cat $F
