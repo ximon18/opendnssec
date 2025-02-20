@@ -81,13 +81,17 @@ jobs:
         run: |
           testing/build-opendnssec.sh
 
-      - name: Upload ROOT
+      - name: Tar ROOT
+        run: |
+          tar -zcvf ROOT.tgz workspace/ROOT workspace/build
+
+      - name: Upload ROOT tarball
         uses: actions/upload-artifact@v4
         with:
-          path: workspace/ROOT/
+          name: root
+          path: ROOT.tgz
           if-no-files-found: error
           retention-days: 1
-          include-hidden-files: true
 
       - name: Create test matrix
         id: matrix
@@ -117,6 +121,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: workspace
+
+      - name: Download ROOT tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: root
+
+      - name: Unpack ROOT tarball
+        run: |
+          tar -zxvf ROOT.tgz
 
       - name: Install pre-requisites
         run: |
@@ -156,11 +169,6 @@ jobs:
   
           sudo chmod a+r /var/log/syslog
 
-      - name: Download ROOT
-        uses: actions/download-artifact@v4
-        with:
-          path: workspace
-
       - name: Setup environment for subsequent steps
         working-directory: workspace
         run: |
@@ -195,7 +203,7 @@ jobs:
           done
 
       - name: Run test ${{ matrix.test }}
-        working-directory: workspace/testing
+        working-directory: workspace
         run: |
           export PATH=${INSTALL_ROOT}/sbin:$PATH
           
