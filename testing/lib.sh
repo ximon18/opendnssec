@@ -1546,7 +1546,7 @@ run_tests ()
 		if [ "$test_status" -eq 0 ] 2>/dev/null; then
 			cat "_test.$BUILD_TAG"
 			echo "##### `date` $test_iter/$test_num $test_path ... OK"
-			echo "::notice file={$test_path},title=Test passed"
+			echo "::notice file=$test_path,title=Test passed"
 			log_cleanup
 			syslog_cleanup
 
@@ -1562,7 +1562,7 @@ run_tests ()
 			test_failed=$(( test_failed + 1 ))
 			cat "_test.$BUILD_TAG"
 			echo "##### `date` $test_iter/$test_num $test_path ... FAILED!"
-			echo "::error file={$test_path},title=Test failed"
+			echo "::error file=$test_path,title=Test failed"
 
 			echo '<testsuite name="'"$test_path"'" tests="1" errors="0" failures="1" time="'"$test_time"'">' >> "$junit_test"
 			echo '<testcase name="'"$test_name"'" classname="'"$test_classname"'" time="'"$test_time"'">' >> "$junit_test"
