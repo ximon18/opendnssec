@@ -13,8 +13,12 @@ env:
   DEBIAN_FRONTEND: noninteractive
 
 jobs:
-  build_and_test:
+  build:
     runs-on: ubuntu-latest
+
+    outputs:
+      tests: ${{ steps.matrix.outputs.tests }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,24 +44,6 @@ jobs:
             libldns-dev   \
             psmisc        \
             sqlite3
-
-      - name: Install and start the syslog daemon
-        run: |
-          sudo apt-get install \
-            -y \
-            --no-install-recommends \
-            --no-install-suggests \
-            syslog-ng
-
-          # Remove PIDs from syslog lines so that ODS test suite syslog line matching works.
-          # See: https://serverfault.com/questions/981150/disable-process-id-showing-in-syslog-ng-logs
-          sudo sed -i -e 's|file("/var/log/syslog")|file("/var/log/syslog" template("$DATE $HOST $PROGRAM: $MESSAGE\\n"))|' /etc/syslog-ng/syslog-ng.conf
-
-          sudo syslog-ng
-
-          sleep 1s
-
-          sudo chmod a+r /var/log/syslog
 
       - name: Setup environment for subsequent steps
         working-directory: workspace
@@ -95,12 +81,98 @@ jobs:
         run: |
           testing/build-opendnssec.sh
 
-      - name: Cache built ROOT
-        uses: actions/cache/save@v4
-        id: cache-ROOT-save
+      - name: Upload ROOT
+        uses: actions/upload-artifact@v4
         with:
-          path: ROOT/
-          key: ROOT
+          path: workspace/ROOT/
+          if-no-files-found: error
+          retention-days: 1
+          include-hidden-files: true
+
+      - name: Create test matrix
+        id: matrix
+        working-directory: workspace
+        run: |
+          MATRIX_JSON='tests='
+          SEP_CHAR='['
+          for TEST_DIR in testing/test-cases.d/*; do
+            echo "${TEST_DIR}"
+            # TEST_NAME=$(basename $TEST_DIR)
+            MATRIX_JSON="${MATRIX_JSON}""${SEP_CHAR}"'"'$TEST_DIR'"'
+            SEP_CHAR=','
+          done
+          MATRIX_JSON="${MATRIX_JSON}]"
+
+          echo "${MATRIX_JSON}" >> "${GITHUB_OUTPUT}"
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      matrix:
+        test: ${{ fromJSON(needs.build.outputs.tests) }}
+      
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: workspace
+
+      - name: Install pre-requisites
+        run: |
+          sudo apt-get update
+
+          # default-jre is needed for relaxng XML schema support
+          # libcunit1-dev is needed for running unit tests
+          # libldns-dev is needed by OpenDNSSEC
+          # psmisc is needed by the test scripts to run killall
+          # sqlite3 is needed when using SQLite3 as the database for ODS
+
+          sudo apt-get install \
+              -y \
+              --no-install-recommends \
+              --no-install-suggests \
+            default-jre   \
+            libcunit1-dev \
+            libldns-dev   \
+            psmisc        \
+            sqlite3
+
+      - name: Install and start the syslog daemon
+        run: |
+          sudo apt-get install \
+            -y \
+            --no-install-recommends \
+            --no-install-suggests \
+            syslog-ng
+  
+          # Remove PIDs from syslog lines so that ODS test suite syslog line matching works.
+          # See: https://serverfault.com/questions/981150/disable-process-id-showing-in-syslog-ng-logs
+          sudo sed -i -e 's|file("/var/log/syslog")|file("/var/log/syslog" template("$DATE $HOST $PROGRAM: $MESSAGE\\n"))|' /etc/syslog-ng/syslog-ng.conf
+  
+          sudo syslog-ng
+  
+          sleep 1s
+  
+          sudo chmod a+r /var/log/syslog
+
+      - name: Download ROOT
+        uses: actions/download-artifact@v4
+        with:
+          path: workspace
+
+      - name: Setup environment for subsequent steps
+        working-directory: workspace
+        run: |
+          WORKSPACE=$(pwd)
+          INSTALL_ROOT=$(pwd)/ROOT
+          PATH=$PATH:${INSTALL_ROOT}/bin/
+
+          mkdir -p ${INSTALL_ROOT}
+
+          echo "${INSTALL_ROOT}/bin/" >> "$GITHUB_PATH"
+          echo "WORKSPACE=${WORKSPACE}" >> "$GITHUB_ENV"
+          echo "INSTALL_ROOT=${INSTALL_ROOT}" >> "$GITHUB_ENV"
 
       - name: Prepare OpenDNSSEC test suite environment
         working-directory: workspace/build
@@ -122,20 +194,20 @@ jobs:
             cp $f $INSTALL_ROOT/etc/opendnssec/`basename $f`.build
           done
 
-      - name: Run the OpenDNSSEC test suite
+      - name: Run test ${{ matrix.test }}
         working-directory: workspace/testing
         run: |
           export PATH=${INSTALL_ROOT}/sbin:$PATH
-          ./test-opendnssec.sh
-          # cd test-cases.d/general.basic.start_stop
-          # ls -la
-          # ../../test-this.sh || {
-          #   ls -la
-          #   cat /var/log/syslog
-          #   for F in $(ls -1 _*); do
-          #     echo $F
-          #     cat $F
-          #   done
-          #   ls -lR $INSTALL_ROOT
-          #   pstree -n -p
-          # }
+          
+          cd ${{ matrix.test }}
+          ls -la
+          ../../test-this.sh || {
+            ls -la
+            cat /var/log/syslog
+            for F in $(ls -1 _*); do
+              echo $F
+              cat $F
+            done
+            ls -lR $INSTALL_ROOT
+            pstree -n -p
+          }
