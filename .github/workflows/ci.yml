@@ -23,7 +23,7 @@ jobs:
 
       - name: Install pre-requisites
         run: |
-          apt-get update
+          sudo apt-get update
 
           # default-jre is needed for relaxng XML schema support
           # libcunit1-dev is needed for running unit tests
@@ -31,7 +31,7 @@ jobs:
           # psmisc is needed by the test scripts to run killall
           # sqlite3 is needed when using SQLite3 as the database for ODS
 
-          apt-get install \
+          sudo apt-get install \
               -y \
               --no-install-recommends \
               --no-install-suggests \
@@ -41,12 +41,10 @@ jobs:
             psmisc        \
             sqlite3
 
-          pstree -n -p
-
       - name: Install and start the syslog daemon if needed
         run: |
           if [ ! -f /var/log/syslog ]; then
-            apt-get install \
+            sudo apt-get install \
               -y \
               --no-install-recommends \
               --no-install-suggests \
@@ -54,9 +52,9 @@ jobs:
 
             # Remove PIDs from syslog lines so that ODS test suite syslog line matching works.
             # See: https://serverfault.com/questions/981150/disable-process-id-showing-in-syslog-ng-logs
-            sed -i -e 's|file("/var/log/syslog")|file("/var/log/syslog" template("$DATE $HOST $PROGRAM: $MESSAGE\\n"))|' /etc/syslog-ng/syslog-ng.conf
+            sudo sed -i -e 's|file("/var/log/syslog")|file("/var/log/syslog" template("$DATE $HOST $PROGRAM: $MESSAGE\\n"))|' /etc/syslog-ng/syslog-ng.conf
 
-            syslog-ng
+            sudo syslog-ng
           fi
 
       - name: Setup environment for subsequent steps
@@ -71,16 +69,8 @@ jobs:
           echo "${INSTALL_ROOT}/bin/" >> "$GITHUB_PATH"
           echo "WORKSPACE=${WORKSPACE}" >> "$GITHUB_ENV"
           echo "INSTALL_ROOT=${INSTALL_ROOT}" >> "$GITHUB_ENV"
-      
-      - name: Restore cached ROOT
-        uses: actions/cache/restore@v4
-        id: cache-ROOT-restore
-        with:
-          path: ROOT/
-          key: ROOT
 
       - name: Build and install SoftHSMv2
-        if: steps.cache-ROOT-restore.outputs.cache-hit != 'true'
         working-directory: workspace
         run: |
           wget https://dist.opendnssec.org/source/softhsm-2.6.1.tar.gz
@@ -99,7 +89,6 @@ jobs:
           make install
 
       - name: Build and install OpenDNSSEC
-        if: steps.cache-ROOT-restore.outputs.cache-hit != 'true'
         working-directory: workspace
         run: |
           testing/build-opendnssec.sh
