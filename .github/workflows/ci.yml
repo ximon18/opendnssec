@@ -126,15 +126,16 @@ jobs:
         working-directory: workspace/testing
         run: |
           export PATH=${INSTALL_ROOT}/sbin:$PATH
-          cd test-cases.d/general.basic.start_stop
-          ls -la
-          ../../test-this.sh || {
-            ls -la
-            cat /var/log/syslog
-            for F in $(ls -1 _*); do
-              echo $F
-              cat $F
-            done
-            ls -lR $INSTALL_ROOT
-            pstree -n -p
-          }
+          ./test-opendnssec.sh
+          # cd test-cases.d/general.basic.start_stop
+          # ls -la
+          # ../../test-this.sh || {
+          #   ls -la
+          #   cat /var/log/syslog
+          #   for F in $(ls -1 _*); do
+          #     echo $F
+          #     cat $F
+          #   done
+          #   ls -lR $INSTALL_ROOT
+          #   pstree -n -p
+          # }
