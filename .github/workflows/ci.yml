@@ -2,7 +2,14 @@
 # See: https://github.com/nektos/act
 name: CI
 
-on: [push]
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      run-in-parallel:
+        description: 'True to run tests in parallel (default), false to run tests sequentially'
+        default: false
+        type: boolean
 
 defaults:
   run:
@@ -97,15 +104,19 @@ jobs:
         id: matrix
         working-directory: workspace
         run: |
-          MATRIX_JSON='tests='
-          SEP_CHAR='['
-          for TEST_DIR in testing/test-cases.d/*; do
-            echo "${TEST_DIR}"
-            # TEST_NAME=$(basename $TEST_DIR)
-            MATRIX_JSON="${MATRIX_JSON}""${SEP_CHAR}"'"'$TEST_DIR'"'
-            SEP_CHAR=','
-          done
-          MATRIX_JSON="${MATRIX_JSON}]"
+          if [[ "${{ inputs.run-in-parallel }}" == "false" ]]; then
+            MATRIX_JSON='tests=["testing/test-cases.d"]'
+          else
+            MATRIX_JSON='tests='
+            SEP_CHAR='['
+            for TEST_DIR in testing/test-cases.d/*; do
+              echo "${TEST_DIR}"
+              # TEST_NAME=$(basename $TEST_DIR)
+              MATRIX_JSON="${MATRIX_JSON}""${SEP_CHAR}"'"'$TEST_DIR'"'
+              SEP_CHAR=','
+            done
+            MATRIX_JSON="${MATRIX_JSON}]"
+          fi
 
           echo "${MATRIX_JSON}" >> "${GITHUB_OUTPUT}"
 
@@ -206,16 +217,20 @@ jobs:
         working-directory: workspace
         run: |
           export PATH=${INSTALL_ROOT}/sbin:$PATH
-          
-          cd ${{ matrix.test }}
-          ls -la
-          ../../test-this.sh || {
-            ls -la
-            cat /var/log/syslog
-            for F in $(ls -1 _*); do
-              echo $F
-              cat $F
-            done
-            ls -lR $INSTALL_ROOT
-            pstree -n -p
-          }
+
+          if [[ "${{ matrix.test }}" == "testing/test-cases.d" ]]; then
+            cd testing
+            ./test-opendnssec.sh
+          else
+            cd ${{ matrix.test }}
+            ../../test-this.sh || {
+              ls -la
+              cat /var/log/syslog
+              for F in $(ls -1 _*); do
+                echo $F
+                cat $F
+              done
+              ls -lR $INSTALL_ROOT
+              pstree -n -p
+            }
+          fi
