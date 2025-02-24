@@ -105,11 +105,12 @@ jobs:
         working-directory: workspace
         run: |
           if [[ "${{ inputs.run-in-parallel }}" == "false" ]]; then
-            MATRIX_JSON='tests=["testing/test-cases.d"]'
+            MATRIX_JSON='tests=["test-cases.d"]'
           else
             MATRIX_JSON='tests='
             SEP_CHAR='['
-            for TEST_DIR in testing/test-cases.d/*; do
+            cd testing
+            for TEST_DIR in test-cases.d/*; do
               echo "${TEST_DIR}"
               # TEST_NAME=$(basename $TEST_DIR)
               MATRIX_JSON="${MATRIX_JSON}""${SEP_CHAR}"'"'$TEST_DIR'"'
@@ -218,8 +219,8 @@ jobs:
         run: |
           export PATH=${INSTALL_ROOT}/sbin:$PATH
 
-          if [[ "${{ matrix.test }}" == "testing/test-cases.d" ]]; then
-            cd testing
+          cd testing
+          if [[ "${{ matrix.test }}" == "test-cases.d" ]]; then
             ./test-opendnssec.sh
           else
             cd ${{ matrix.test }}
