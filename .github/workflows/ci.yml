@@ -112,9 +112,11 @@ jobs:
             cd testing
             for TEST_DIR in test-cases.d/*; do
               echo "${TEST_DIR}"
-              # TEST_NAME=$(basename $TEST_DIR)
-              MATRIX_JSON="${MATRIX_JSON}""${SEP_CHAR}"'"'$TEST_DIR'"'
-              SEP_CHAR=','
+              if [ ! -f "${TEST_DIR}/OFF" ]; then
+                # TEST_NAME=$(basename $TEST_DIR)
+                MATRIX_JSON="${MATRIX_JSON}""${SEP_CHAR}"'"'$TEST_DIR'"'
+                SEP_CHAR=','
+              fi
             done
             MATRIX_JSON="${MATRIX_JSON}]"
           fi
