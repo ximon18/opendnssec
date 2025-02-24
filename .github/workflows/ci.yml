@@ -233,4 +233,5 @@ jobs:
               ls -lR $INSTALL_ROOT
               pstree -n -p
             }
+            exit 1
           fi
