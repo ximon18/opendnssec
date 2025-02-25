@@ -84,6 +84,7 @@ jobs:
           make install
 
       - name: Build and install OpenDNSSEC
+        working-directory: workspace
         run: |
           testing/build-opendnssec.sh
 
