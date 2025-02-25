@@ -30,7 +30,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          path: ${{ runner.temp }}/w
+          path: workspace
 
       - name: Install pre-requisites
         run: |
@@ -53,10 +53,10 @@ jobs:
             sqlite3
 
       - name: Setup environment for subsequent steps
-        working-directory: ${{ runner.temp }}/w
+        working-directory: workspace
         run: |
           WORKSPACE=$(pwd)
-          INSTALL_ROOT=$(pwd)/ROOT
+          INSTALL_ROOT=${{ runner.temp }}/ROOT
           PATH=$PATH:${INSTALL_ROOT}/bin/
 
           mkdir -p ${INSTALL_ROOT}
@@ -66,7 +66,7 @@ jobs:
           echo "INSTALL_ROOT=${INSTALL_ROOT}" >> "$GITHUB_ENV"
 
       - name: Build and install SoftHSMv2
-        working-directory: ${{ runner.temp }}/w
+        working-directory: workspace
         run: |
           wget https://dist.opendnssec.org/source/softhsm-2.6.1.tar.gz
           tar xzf softhsm-2.6.1.tar.gz
@@ -84,12 +84,12 @@ jobs:
           make install
 
       - name: Build and install OpenDNSSEC
-        working-directory: ${{ runner.temp }}/w
+        working-directory: workspace
         run: |
           testing/build-opendnssec.sh
 
       - name: Tar ROOT
-        working-directory: ${{ runner.temp }}/w
+        working-directory: ${{ runner.temp }}
         run: |
           tar -zcvf ROOT.tgz ROOT build
 
@@ -103,7 +103,7 @@ jobs:
 
       - name: Create test matrix
         id: matrix
-        working-directory: ${{ runner.temp }}/w
+        working-directory: workspace
         run: |
           if [[ "${{ inputs.run-in-parallel }}" == "false" ]]; then
             MATRIX_JSON='tests=["test-cases.d"]'
@@ -135,16 +135,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          path: ${{ runner.temp }}/w
+          path: workspace
 
       - name: Download ROOT tarball
         uses: actions/download-artifact@v4
         with:
           name: root
-          path: ${{ runner.temp }}/w
+          path: ${{ runner.temp }}
 
       - name: Unpack ROOT tarball
-        working-directory: ${{ runner.temp }}/w
+        working-directory: ${{ runner.temp }}
         run: |
           tar -zxvf ROOT.tgz
 
@@ -203,20 +203,18 @@ jobs:
           sudo chmod a+r /var/log/syslog
 
       - name: Setup environment for subsequent steps
-        working-directory: ${{ runner.temp }}/w
+        working-directory: ${{ runner.temp }}
         run: |
           WORKSPACE=$(pwd)
           INSTALL_ROOT=$(pwd)/ROOT
           PATH=$PATH:${INSTALL_ROOT}/bin/
-
-          mkdir -p ${INSTALL_ROOT}
 
           echo "${INSTALL_ROOT}/bin/" >> "$GITHUB_PATH"
           echo "WORKSPACE=${WORKSPACE}" >> "$GITHUB_ENV"
           echo "INSTALL_ROOT=${INSTALL_ROOT}" >> "$GITHUB_ENV"
 
       - name: Prepare OpenDNSSEC test suite environment
-        working-directory: ${{ runner.temp }}/w/build
+        working-directory: ${{ runner.temp }}/build
         run: |
           echo "SVN_REVISION=1" >> "$GITHUB_ENV"
           echo "" > $INSTALL_ROOT/.botan.ok
@@ -237,7 +235,7 @@ jobs:
 
       - name: Run test ${{ matrix.test }}
         id: run_test
-        working-directory: ${{ runner.temp }}/w
+        working-directory: workspace
         run: |
           export PATH=${INSTALL_ROOT}/sbin:$PATH
 
@@ -251,7 +249,7 @@ jobs:
 
       - name: Dump diagnostics on single test failure
         if: steps.run_test.outputs.test_result == 'FAILED'
-        working-directory: ${{ runner.temp }}/w
+        working-directory: workspace
         run: |
           cd testing/${{ matrix.test }}
           ls -la
