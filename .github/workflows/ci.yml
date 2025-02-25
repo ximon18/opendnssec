@@ -211,8 +211,8 @@ jobs:
           echo "INSTALL_ROOT=${INSTALL_ROOT}" >> "$GITHUB_ENV"
 
       - name: Prepare OpenDNSSEC test suite environment
-        working-directory: build
         run: |
+          cd $HOME/build
           echo "SVN_REVISION=1" >> "$GITHUB_ENV"
           echo "" > $INSTALL_ROOT/.botan.ok
           echo "1" > $INSTALL_ROOT/.botan.build
