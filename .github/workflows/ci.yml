@@ -84,8 +84,8 @@ jobs:
           make install
 
       - name: Build and install OpenDNSSEC
-        working-directory: workspace
         run: |
+          cd $HOME
           testing/build-opendnssec.sh
 
       - name: Tar ROOT
