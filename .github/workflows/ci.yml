@@ -56,7 +56,7 @@ jobs:
         working-directory: workspace
         run: |
           WORKSPACE=$(pwd)
-          INSTALL_ROOT=${{ runner.temp }}/ROOT
+          INSTALL_ROOT=ROOT
           PATH=$PATH:${INSTALL_ROOT}/bin/
 
           mkdir -p ${INSTALL_ROOT}
@@ -89,7 +89,6 @@ jobs:
           testing/build-opendnssec.sh
 
       - name: Tar ROOT
-        working-directory: ${{ runner.temp }}
         run: |
           tar -zcvf ROOT.tgz ROOT build
 
@@ -141,10 +140,8 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: root
-          path: ${{ runner.temp }}
 
       - name: Unpack ROOT tarball
-        working-directory: ${{ runner.temp }}
         run: |
           tar -zxvf ROOT.tgz
 
@@ -203,7 +200,6 @@ jobs:
           sudo chmod a+r /var/log/syslog
 
       - name: Setup environment for subsequent steps
-        working-directory: ${{ runner.temp }}
         run: |
           WORKSPACE=$(pwd)
           INSTALL_ROOT=$(pwd)/ROOT
@@ -214,7 +210,7 @@ jobs:
           echo "INSTALL_ROOT=${INSTALL_ROOT}" >> "$GITHUB_ENV"
 
       - name: Prepare OpenDNSSEC test suite environment
-        working-directory: ${{ runner.temp }}/build
+        working-directory: build
         run: |
           echo "SVN_REVISION=1" >> "$GITHUB_ENV"
           echo "" > $INSTALL_ROOT/.botan.ok
