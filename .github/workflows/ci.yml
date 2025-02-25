@@ -91,7 +91,7 @@ jobs:
       - name: Tar ROOT
         working-directory: workspace
         run: |
-          tar -zcvf ROOT.tgz $HOME/ROOT build
+          tar -zcvf ROOT.tgz build -C $HOME ROOT
 
       - name: Upload ROOT tarball
         uses: actions/upload-artifact@v4
