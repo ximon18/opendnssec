@@ -144,7 +144,7 @@ jobs:
 
       - name: Unpack ROOT tarball
         run: |
-          tar -zxvf ROOT.tgz
+          tar -zxvf ROOT.tgz -C $HOME
 
       - name: Install pre-requisites
         run: |
