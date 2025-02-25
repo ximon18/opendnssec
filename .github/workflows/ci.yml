@@ -150,6 +150,7 @@ jobs:
           sudo apt-get update
 
           # default-jre is needed for relaxng XML schema support
+          # ldnsutils is needed for ldns-testns used by test-cases.d/signer.adapters.input_basic
           # libcunit1-dev is needed for running unit tests
           # libldns-dev is needed by OpenDNSSEC
           # psmisc is needed by the test scripts to run killall
@@ -160,6 +161,7 @@ jobs:
               --no-install-recommends \
               --no-install-suggests \
             default-jre   \
+            ldnsutils     \
             libcunit1-dev \
             libldns-dev   \
             psmisc        \
