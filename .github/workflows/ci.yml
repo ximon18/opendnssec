@@ -153,8 +153,10 @@ jobs:
           # ldnsutils is needed for ldns-testns used by test-cases.d/signer.adapters.input_basic
           # libcunit1-dev is needed for running unit tests
           # libldns-dev is needed by OpenDNSSEC
+          # libxml2-utils is needed for xmllint used by functions-opendnssec.sh
           # psmisc is needed by the test scripts to run killall
           # sqlite3 is needed when using SQLite3 as the database for ODS
+          # xsltproc is needed for xsltproc used by functions-opendnssec.sh
 
           sudo apt-get install \
               -y \
@@ -164,8 +166,10 @@ jobs:
             ldnsutils     \
             libcunit1-dev \
             libldns-dev   \
+            libxml2-utils \
             psmisc        \
-            sqlite3
+            sqlite3       \
+            xsltproc
 
       - name: Install and start the syslog daemon
         run: |
