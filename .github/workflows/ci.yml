@@ -56,7 +56,7 @@ jobs:
         working-directory: workspace
         run: |
           WORKSPACE=$(pwd)
-          INSTALL_ROOT=ROOT
+          INSTALL_ROOT=$(pwd)/ROOT
           PATH=$PATH:${INSTALL_ROOT}/bin/
 
           mkdir -p ${INSTALL_ROOT}
