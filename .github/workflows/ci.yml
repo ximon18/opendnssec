@@ -223,6 +223,7 @@ jobs:
           done
 
       - name: Run test ${{ matrix.test }}
+        id: run_test
         working-directory: workspace
         run: |
           export PATH=${INSTALL_ROOT}/sbin:$PATH
@@ -232,14 +233,19 @@ jobs:
             ./test-opendnssec.sh
           else
             cd ${{ matrix.test }}
-            ../../test-this.sh || {
-              ls -la
-              for F in $(ls -1 _*); do
-                echo $F
-                cat $F
-              done
-              ls -lR $INSTALL_ROOT
-              pstree -n -p
-              exit 1
-            }
+            ../../test-this.sh || echo "test_result=FAILED" >> "${GITHUB_OUTPUT}"
           fi
+
+      - name: Dump diagnostics on single test failure
+        if: steps.run_test.outputs.test_result == 'FAILED'
+        working-directory: workspace
+        run: |
+          cd testing/${{ matrix.test }}
+          ls -la
+          for F in $(ls -1 _*); do
+            echo $F
+            cat $F
+          done
+          ls -lR $INSTALL_ROOT
+          pstree -n -p
+          exit 1
