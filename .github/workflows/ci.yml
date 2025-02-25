@@ -90,6 +90,7 @@ jobs:
 
       - name: Tar ROOT
         run: |
+          cd $HOME
           tar -zcvf ROOT.tgz ROOT build
 
       - name: Upload ROOT tarball
