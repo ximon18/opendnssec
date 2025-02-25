@@ -228,7 +228,6 @@ jobs:
             cd ${{ matrix.test }}
             ../../test-this.sh || {
               ls -la
-              cat /var/log/syslog
               for F in $(ls -1 _*); do
                 echo $F
                 cat $F
