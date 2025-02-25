@@ -153,10 +153,10 @@ jobs:
           # ldnsutils is needed for ldns-testns used by test-cases.d/signer.adapters.input_basic
           # libcunit1-dev is needed for running unit tests
           # libldns-dev is needed by OpenDNSSEC
-          # libxml2-utils is needed for xmllint used by functions-opendnssec.sh
+          # libxml2-utils is needed for xmllint used by functions-opendnssec.sh used by test-cases.d/enforcer.ods-enforcer.zones_and_zonelist
           # psmisc is needed by the test scripts to run killall
           # sqlite3 is needed when using SQLite3 as the database for ODS
-          # xsltproc is needed for xsltproc used by functions-opendnssec.sh
+          # xsltproc is needed for xsltproc used by functions-opendnssec.sh used by test-cases.d/enforcer.ods-enforcer.zones_and_zonelist
 
           sudo apt-get install \
               -y \
