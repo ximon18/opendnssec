@@ -263,19 +263,19 @@ jobs:
         run: |
           cd testing/${{ matrix.test }}
 
-          echo "::debug::Listing test directory contents"
+          echo "::notice::Listing test directory contents"
           ls -la
 
-          echo "::debug::Dumping left over _log files"
+          echo "::notice::Dumping left over _log files"
           for F in $(ls -1 _*); do
-            echo "::debug::Dumping $F"
+            echo "::notice::Dumping $F"
             cat $F
           done
 
-          echo "::debug::Listing $INSTALL_ROOT directory contents"
+          echo "::notice::Listing $INSTALL_ROOT directory contents"
           ls -lR $INSTALL_ROOT
 
-          echo "::debug::Dumping running processes tree"
+          echo "::notice::Dumping running processes tree"
           pstree -n -p
 
           exit 1
