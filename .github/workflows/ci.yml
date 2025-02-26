@@ -150,12 +150,14 @@ jobs:
         run: |
           sudo apt-get update
 
+          # bind9 is needed for named used by test-cases.d/signer.adapters.bind_stress_test
           # default-jre is needed for relaxng XML schema support
           # ldnsutils is needed for ldns-testns used by test-cases.d/signer.adapters.input_basic
           #                     for ldns-notify used by test-cases.d/signer.adapters.input_ixfr_notimpl
           # libcunit1-dev is needed for running unit tests
           # libldns-dev is needed by OpenDNSSEC
           # libxml2-utils is needed for xmllint used by functions-opendnssec.sh used by test-cases.d/enforcer.ods-enforcer.zones_and_zonelist
+          # perl is used by test-cases.d/signer.adapters.bind_stress_test
           # psmisc is needed by the test scripts to run killall
           # sqlite3 is needed when using SQLite3 as the database for ODS
           # xsltproc is needed for xsltproc used by functions-opendnssec.sh used by test-cases.d/enforcer.ods-enforcer.zones_and_zonelist
@@ -164,10 +166,12 @@ jobs:
               -y \
               --no-install-recommends \
               --no-install-suggests \
+            bind9         \
             default-jre   \
             libcunit1-dev \
             libldns-dev   \
             libxml2-utils \
+            perl          \
             psmisc        \
             sqlite3       \
             xsltproc
