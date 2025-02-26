@@ -152,6 +152,7 @@ jobs:
 
           # default-jre is needed for relaxng XML schema support
           # ldnsutils is needed for ldns-testns used by test-cases.d/signer.adapters.input_basic
+          #                     for ldns-notify used by test-cases.d/signer.adapters.input_ixfr_notimpl
           # libcunit1-dev is needed for running unit tests
           # libldns-dev is needed by OpenDNSSEC
           # libxml2-utils is needed for xmllint used by functions-opendnssec.sh used by test-cases.d/enforcer.ods-enforcer.zones_and_zonelist
@@ -188,6 +189,7 @@ jobs:
           . "$HOME/.cargo/env"
           cargo install --git https://github.com/NLnetLabs/dnst --branch ldns-testns
           P=$HOME/.cargo/bin/dnst ; sudo ln -s $P /usr/bin/ldns-testns
+          P=$HOME/.cargo/bin/dnst ; sudo ln -s $P /usr/bin/ldns-notify
 
       - name: Install and start the syslog daemon
         run: |
