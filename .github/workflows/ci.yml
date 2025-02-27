@@ -65,7 +65,7 @@ jobs:
           echo "WORKSPACE=${WORKSPACE}" >> "$GITHUB_ENV"
           echo "INSTALL_ROOT=${INSTALL_ROOT}" >> "$GITHUB_ENV"
 
-          sudo chown -R $USER: ${INSTALL_ROOT}
+          sudo chown -R runner: ${INSTALL_ROOT}
 
 #      - name: Build and install SoftHSMv2
 #        working-directory: workspace
@@ -95,6 +95,7 @@ jobs:
       - name: Build and install OpenDNSSEC
         working-directory: workspace
         run: |
+          ls -la ${INSTALL_ROOT}
           testing/build-opendnssec.sh
 
       - name: Tar ROOT
