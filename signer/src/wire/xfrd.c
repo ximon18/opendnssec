@@ -1097,7 +1097,7 @@ xfrd_parse_packet(xfrd_type* xfrd, buffer_type* buffer)
             xfrd->serial_disk_acquired = xfrd_time(xfrd);
             ods_log_info("[%s] zone %s XIMON: xfrd->serial_xfr=%u serial=%u xfrd->serial_notify_acquired=%ld xfrd->round_num=%d",
                  xfrd_str, zone->name,
-                 xfrd->serial_xfr, serial, xfrd->serial_notify_acquired);
+                 xfrd->serial_xfr, serial, xfrd->serial_notify_acquired, xfrd->round_num);
             if (xfrd->serial_xfr == serial) {
                 xfrd->serial_xfr_acquired = time_now();
                 if (!xfrd->serial_notify_acquired) {
