@@ -150,7 +150,7 @@ void
 buffer_skip(buffer_type* buffer, ssize_t count)
 {
     ods_log_assert(buffer);
-    ods_log_verbose("XIMON buffer: pos=%d count=%d limit=%d", buffer->position, count, buffer->limit);
+    ods_log_verbose("XIMON buffer: pos=%ld count=%ld limit=%ld", buffer->position, count, buffer->limit);
     ods_log_assert(buffer->position + count <= buffer->limit);
     buffer->position += count;
 }
