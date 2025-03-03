@@ -1,5 +1,7 @@
-# Tested locally with nektos/act.
-# See: https://github.com/nektos/act
+# Tested locally with https://github.com/nektos/act
+# Command: act workflow_dispatch
+# For timestamps run: act workflow_dispatch | ts
+# See also: .actrc
 name: CI
 
 on:
@@ -10,7 +12,15 @@ on:
         description: 'True to run tests in parallel (default), false to run tests sequentially'
         default: false
         type: boolean
-
+      build-runs-on:
+        description: 'The runner type to run the build job on, or when using act a local Docker image name'
+        default: 'ubuntu-latest'
+        type: string
+      test-runs-on:
+        description: 'The runner type to run the build job on, or when using act a local Docker image name'
+        default: 'ubuntu-latest'
+        type: string
+      
 defaults:
   run:
     # see: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
@@ -21,7 +31,7 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.build-runs-on }}
 
     outputs:
       tests: ${{ steps.matrix.outputs.tests }}
@@ -67,31 +77,6 @@ jobs:
 
           sudo chown -R runner: ${INSTALL_ROOT}
 
-#      - name: Build and install SoftHSMv2
-#        working-directory: workspace
-#        run: |
-#          if [ -f ${INSTALL_ROOT}/bin/softhsm2-util ]; then
-#            exit 0
-#          fi
-#
-#          wget https://dist.opendnssec.org/source/softhsm-2.6.1.tar.gz
-#          tar xzf softhsm-2.6.1.tar.gz
-#          cd softhsm-2.6.1
-#          ./configure \
-#            --prefix=${INSTALL_ROOT} \
-#            --sbindir=${INSTALL_ROOT}/bin \
-#            --mandir=${INSTALL_ROOT}/man \
-#            --disable-non-paged-memory \
-#            --with-migrate \
-#            --disable-p11-kit \
-#            --with-crypto-backend=openssl \
-#            --disable-ecc \
-#            --disable-gost
-#          make
-#          make install
-#
-#          touch ${INSTALL_ROOT}/.softhsm2.ok
-
       - name: Build and install OpenDNSSEC
         working-directory: workspace
         run: |
@@ -135,7 +120,7 @@ jobs:
           echo "${MATRIX_JSON}" >> "${GITHUB_OUTPUT}"
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.test-runs-on }}
     needs: build
     strategy:
       matrix:
@@ -184,6 +169,7 @@ jobs:
             perl          \
             psmisc        \
             sqlite3       \
+            tshark        \
             xsltproc
 
           # # Install ldns-testns
@@ -195,15 +181,16 @@ jobs:
           # autoreconf -fi
           # ./configure --with-examples --with-drill
           # make
-          # sudo make install
+          # make install
 
-          # Try dnst testns instead as ldns-testns is core dumping...
+          # Install dnst
           sudo apt-get install -y build-essential curl libssl-dev pkg-config
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sudo sh -s -- -y --profile minimal --default-toolchain stable
           . "$HOME/.cargo/env"
           cargo install --git https://github.com/NLnetLabs/dnst --branch ldns-testns
-          P=$HOME/.cargo/bin/dnst ; sudo ln -s $P /usr/bin/ldns-testns
-          P=$HOME/.cargo/bin/dnst ; sudo ln -s $P /usr/bin/ldns-notify
+          P=$HOME/.cargo/bin/dnst
+          [ -h /usr/bin/ldns-testns ] || sudo ln -s $P /usr/bin/ldns-testns
+          [ -h /usr/bin/ldns-notify ] || sudo ln -s $P /usr/bin/ldns-notify
 
       - name: Install and start the syslog daemon
         run: |
@@ -216,12 +203,15 @@ jobs:
           # Remove PIDs from syslog lines so that ODS test suite syslog line matching works.
           # See: https://serverfault.com/questions/981150/disable-process-id-showing-in-syslog-ng-logs
           sudo sed -i -e 's|file("/var/log/syslog")|file("/var/log/syslog" template("$DATE $HOST $PROGRAM: $MESSAGE\\n"))|' /etc/syslog-ng/syslog-ng.conf
+
+          # Prevent filtering of debug logs to /var/log/syslog.
+          sudo sed -i -e 's|filter f_syslog3 { not facility(auth, authpriv, mail) and not filter(f_debug); };|filter f_syslog3 { not facility(auth, authpriv, mail) };|' /etc/syslog-ng/syslog-ng.conf
   
           sudo syslog-ng
   
           sleep 1s
   
-          sudo chmod a+r /var/log/syslog
+          sudo chmod a+rw /var/log/syslog
 
       - name: Setup environment for subsequent steps
         run: |
@@ -259,11 +249,29 @@ jobs:
         run: |
           export PATH=${INSTALL_ROOT}/sbin:$PATH
 
+          # When using nektos/act to run locally and using a ROOT volume to
+          # cache built artifacts, state from previous runs can get left
+          # behind so cleanup a bit first.
+          pushd ${INSTALL_ROOT}
+          find . -name \*.pid -delete || true
+          find . -name \*.sock -delete || true
+          killall -9 ods-signerd || true
+          killall -9 ods-enforcerd || true
+          find . -name \*core -delete || true
+          rm -rf var/lib/softhsm/tokens/* || true
+          rm -f $root/var/opendnssec/enforcer/zones.xml || true
+          rm -f $root/var/opendnssec/signed/* || true
+          rm -f $root/var/opendnssec/signer/* || true
+          rm -f $root/var/opendnssec/signconf/* || true
+          rm -f $root/var/opendnssec/kasp.db || true
+          popd
+
           cd testing
           if [[ "${{ matrix.test }}" == "test-cases.d" ]]; then
             ./test-opendnssec.sh
           else
             cd ${{ matrix.test }}
+            sudo tshark -i any -d udp.port==15353,dns -d udp.port==15354,dns port 15353 or port 15354 &> _tshark.log &
             ../../test-this.sh || echo "test_result=FAILED" >> "${GITHUB_OUTPUT}"
           fi
 

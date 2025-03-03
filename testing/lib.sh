@@ -1491,7 +1491,6 @@ run_tests ()
 		if [ -z "$test_classname" ]; then
 			test_classname='unknown.unknown'
 		fi
-		echo "::group::$test_iter/$test_num $test_path"
 		echo "##### `date` $test_iter/$test_num $test_path ... "
 		pwd2=`pwd`
 		cd "$test_path" 2>/dev/null &&
@@ -1546,7 +1545,6 @@ run_tests ()
 		if [ "$test_status" -eq 0 ] 2>/dev/null; then
 			cat "_test.$BUILD_TAG"
 			echo "##### `date` $test_iter/$test_num $test_path ... OK"
-			echo "::notice file=$test_path::Test passed"
 			log_cleanup
 			syslog_cleanup
 
@@ -1562,7 +1560,6 @@ run_tests ()
 			test_failed=$(( test_failed + 1 ))
 			cat "_test.$BUILD_TAG"
 			echo "##### `date` $test_iter/$test_num $test_path ... FAILED!"
-			echo "::error file=$test_path::Test failed"
 
 			echo '<testsuite name="'"$test_path"'" tests="1" errors="0" failures="1" time="'"$test_time"'">' >> "$junit_test"
 			echo '<testcase name="'"$test_name"'" classname="'"$test_classname"'" time="'"$test_time"'">' >> "$junit_test"
@@ -1573,7 +1570,6 @@ run_tests ()
 			echo '</system-err>' >> "$junit_test"
 			echo '</testsuite>' >> "$junit_test"
 		fi
-		echo "::endgroup::"
 
 		if ! cd "$pwd2" 2>/dev/null; then
 			echo "run_tests: unable to change back to test directory $pwd2 after running a test!" >&2
