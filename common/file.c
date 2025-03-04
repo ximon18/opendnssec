@@ -362,6 +362,8 @@ ods_replace(const char *str, const char *oldstr, const char *newstr)
     size_t part2_len = 0;
     size_t part3_len = 0;
 
+     ods_log_info("XIMON: ods_replace('%s', '%s', '%s')", str, oldstr, newstr);
+
     if (!str) {
        return NULL;
     }
