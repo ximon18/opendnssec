@@ -106,7 +106,7 @@ jobs:
         working-directory: workspace
         run: |
           if [[ "${{ inputs.run-one-test }}" != "" ]]; then
-            MATRIX_JSON='test=["${{ inputs.run-one-test }}"]'
+            MATRIX_JSON='tests=["${{ inputs.run-one-test }}"]'
           elif [[ "${{ inputs.run-in-parallel }}" == "false" ]]; then
             MATRIX_JSON='tests=["test-cases.d"]'
           else
