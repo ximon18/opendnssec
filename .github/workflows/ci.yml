@@ -1,6 +1,7 @@
 # Tested locally with https://github.com/nektos/act
-# Command: act workflow_dispatch
-# For timestamps run: act workflow_dispatch | ts
+# Command to run all tests locally in serial: act workflow_dispatch
+# Command to run one test locally: act --input run-one-test=test-cases.d/signer.conf.notify_command workflow_dispatch
+# For timestamps pipe through 'ts', e.g.: act workflow_dispatch | ts
 # See also: .actrc
 name: CI
 
@@ -12,6 +13,10 @@ on:
         description: 'True to run tests in parallel (default), false to run tests sequentially'
         default: false
         type: boolean
+      run-one-test:
+        description: 'Run only the named single test, e.g. test-cases.d/general.basic_start_stop'
+        default: ''
+        type: string
       build-runs-on:
         description: 'The runner type to run the build job on, or when using act a local Docker image name'
         default: 'ubuntu-latest'
@@ -31,7 +36,7 @@ env:
 
 jobs:
   build:
-    runs-on: ${{ inputs.build-runs-on != '' || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.build-runs-on || 'ubuntu-latest' }}
 
     outputs:
       tests: ${{ steps.matrix.outputs.tests }}
@@ -100,9 +105,11 @@ jobs:
         id: matrix
         working-directory: workspace
         run: |
-          if [[ "${{ inputs.run-in-parallel }}" == "false" ]]; then
+          if [[ "${{ inputs.run-one-test }}" != "" ]]; then
+            MATRIX_JSON='test=["${{ inputs.run-one-test }}"]'
+          elif [[ "${{ inputs.run-in-parallel }}" == "false" ]]; then
             MATRIX_JSON='tests=["test-cases.d"]'
-          else
+          elelse
             MATRIX_JSON='tests='
             SEP_CHAR='['
             cd testing
@@ -120,7 +127,7 @@ jobs:
           echo "${MATRIX_JSON}" >> "${GITHUB_OUTPUT}"
 
   test:
-    runs-on: ${{ inputs.test-runs-on != '' || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.test-runs-on || 'ubuntu-latest' }}
     needs: build
     strategy:
       matrix:
