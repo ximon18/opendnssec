@@ -362,8 +362,6 @@ ods_replace(const char *str, const char *oldstr, const char *newstr)
     size_t part2_len = 0;
     size_t part3_len = 0;
 
-    ods_log_info("XIMON: ods_replace('%s', '%s', '%s')", str, oldstr, newstr);
-
     if (!str) {
        return NULL;
     }
@@ -376,45 +374,36 @@ ods_replace(const char *str, const char *oldstr, const char *newstr)
         return buffer;
     }
 
-    // Length of str upto the first occurence of oldstr
     part1_len = ch-str;
-
-    // Length of newstr (which will be inserted after part 1)
     part2_len = strlen(newstr);
-
-    // Length of the string that follows oldstr
     part3_len = strlen(ch+strlen(oldstr));
-
     buffer = calloc(part1_len+part2_len+part3_len+1, sizeof(char));
     if (!buffer) {
         return NULL;
     }
-    buffer[0] = '\0';
 
-    ods_log_info("XIMON: ods_replace(): part lengths: %ld, %ld, %ld", part1_len, part2_len, part3_len);
-
-    // Characters preceeding oldstr exist in str. Copy them to the output buffer.
     if (part1_len) {
         strncpy(buffer, str, part1_len);
         buffer[part1_len] = '\0';
-        ods_log_info("XIMON: ods_replace(): copied part 1, now buffer=%s", buffer);
+
+        if (part2_len) {
+            strncat(buffer, str, part2_len);
+            buffer[part1_len+part2_len] = '\0';
+        }
+    } else {
+        strncpy(buffer, newstr, part2_len);
+        buffer[part2_len] = '\0';
     }
 
-    // Append newstr.
-    strncat(buffer, newstr, part2_len);
-    ods_log_info("XIMON: ods_replace(): concatenated part 2, now buffer=%s", buffer);
-
-    // Append the string in str that follows the first match of oldstr, if any.
     if (part3_len) {
         strncat(buffer, ch+strlen(oldstr), part3_len);
-        ods_log_info("XIMON: ods_replace(): concatenated part 3, now buffer=%s", buffer);
+        buffer[part1_len+part2_len+part3_len] = '\0';
     }
 
-    ods_log_info("XIMON: ods_replace(): final buffer=%s", buffer);
-
+    buffer[ch-str] = '\0';
+    snprintf(buffer+(ch-str), SYSTEM_MAXLEN, "%s%s", newstr, ch+strlen(oldstr));
     return buffer;
 }
-
 
 /**
  * File copy.
