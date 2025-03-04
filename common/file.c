@@ -362,7 +362,7 @@ ods_replace(const char *str, const char *oldstr, const char *newstr)
     size_t part2_len = 0;
     size_t part3_len = 0;
 
-     ods_log_info("XIMON: ods_replace('%s', '%s', '%s')", str, oldstr, newstr);
+    ods_log_info("XIMON: ods_replace('%s', '%s', '%s')", str, oldstr, newstr);
 
     if (!str) {
        return NULL;
@@ -383,7 +383,7 @@ ods_replace(const char *str, const char *oldstr, const char *newstr)
     if (!buffer) {
         return NULL;
     }
-
+    ods_log_info("XIMON: ods_replace(): part lengths: %ld, %ld, %ld", part1_len, part2_len, part3_len);
     if (part1_len) {
         strncpy(buffer, str, part1_len);
         buffer[part1_len] = '\0';
@@ -403,6 +403,7 @@ ods_replace(const char *str, const char *oldstr, const char *newstr)
     }
 
     buffer[ch-str] = '\0';
+    ods_log_info("XIMON: ods_replace(): base_buf: %s, new_str: %s, extra_str: %s", buffer, newstr, ch+strlen(oldstr));
     snprintf(buffer+(ch-str), SYSTEM_MAXLEN, "%s%s", newstr, ch+strlen(oldstr));
     return buffer;
 }
