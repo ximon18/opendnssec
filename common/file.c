@@ -398,7 +398,7 @@ ods_replace(const char *str, const char *oldstr, const char *newstr)
     return buffer;
 }
 
-/**`
+/**
  * File copy.
  *
  */
