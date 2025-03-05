@@ -33,7 +33,7 @@ ods_ldns_testns_kill &&
 
 ## See if we can transfer the signed zone
 log_this_timeout dnsi 10 dnsi xfr --format dig -p 15354 -s 127.0.0.1 ods &&
-log_grep dnsi stdout 'ods..*3600.*IN.*SOA.*ns1.ods..*postmaster.ods..*1001.*30.*5.*31.*3600' &&
+log_grep dnsi stdout 'ods\..*3600.*IN.*SOA.*ns1\.ods\..*postmaster\.ods\..*1001.*30.*5.*31.*3600' &&
 
 ## See if SOA RETRY is being done
 syslog_waitfor 35 'ods-signerd: .*\[xfrd\] zone ods make request .*round 0 master.*' &&
