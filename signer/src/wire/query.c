@@ -297,16 +297,13 @@ query_process_notify(query_type* q, ldns_rr_type qtype, engine_type* engine)
         qtype != LDNS_RR_TYPE_SOA) {
         return query_formerr(q);
     }
-    ods_log_verbose("[%s] XIMON 1", q->zone->name);
     if (!q->zone->adinbound || q->zone->adinbound->type != ADAPTER_DNS) {
         ods_log_error("[%s] zone %s is not configured to have input dns "
             "adapter", query_str, q->zone->name);
         return query_notauth(q);
     }
-    ods_log_verbose("[%s] XIMON 2", q->zone->name);
     ods_log_assert(q->zone->adinbound->config);
     dnsin = (dnsin_type*) q->zone->adinbound->config;
-    ods_log_verbose("[%s] XIMON 3", q->zone->name);
     if (!acl_find(dnsin->allow_notify, &q->addr, q->tsig_rr)) {
         if (addr2ip(q->addr, address, sizeof(address))) {
             ods_log_info("[%s] unauthorized notify for zone %s from %s: "
@@ -317,12 +314,9 @@ query_process_notify(query_type* q, ldns_rr_type qtype, engine_type* engine)
         }
         return query_notauth(q);
     }
-    ods_log_verbose("[%s] XIMON 4", q->zone->name);
     ods_log_assert(q->zone->xfrd);
     /* skip header and question section */
-    ods_log_verbose("[%s] XIMON 5", q->zone->name);
     buffer_skip(q->buffer, BUFFER_PKT_HEADER_SIZE);
-    ods_log_verbose("[%s] XIMON 6", q->zone->name);
     count = buffer_pkt_qdcount(q->buffer);
     for (rrcount = 0; rrcount < count; rrcount++) {
         if (!buffer_skip_rr(q->buffer, 1)) {
@@ -338,7 +332,6 @@ query_process_notify(query_type* q, ldns_rr_type qtype, engine_type* engine)
             return QUERY_DISCARDED;
         }
     }
-    ods_log_verbose("[%s] XIMON 7", q->zone->name);
     pos = buffer_position(q->buffer);
 
     /* examine answer section */

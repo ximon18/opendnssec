@@ -1112,7 +1112,7 @@ xfrd_parse_packet(xfrd_type* xfrd, buffer_type* buffer)
                 pthread_mutex_unlock(&xfrd->serial_lock);
                 return XFRD_PKT_BAD;
             }
-	    }
+        }
         if (!xfrd->msg_do_retransfer && xfrd->serial_disk_acquired &&
             !util_serial_gt(serial, xfrd->serial_disk)) {
             ods_log_info("[%s] zone %s ignoring old serial %u from %s "
