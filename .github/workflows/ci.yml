@@ -37,6 +37,7 @@ env:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         os: ["ubuntu:24.04", "fedora:41"]
     runs-on: ubuntu-latest
