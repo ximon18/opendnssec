@@ -182,7 +182,7 @@ jobs:
     needs: test-build
     strategy:
       matrix:
-        test: ${{ fromJSON(needs.build.outputs.tests) }}
+        test: ${{ fromJSON(needs.test-build.outputs.tests) }}
 
     steps:
       - name: Checkout
