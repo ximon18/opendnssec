@@ -43,8 +43,8 @@ syslog_waitfor 35 'ods-signerd: .*\[xfrd\] zone ods sets timer timeout retry 5' 
 
 ## See if it stops serving zone transfer after the SOA EXPIRE interval
 sleep 35 &&
-log_this_timeout dnsi 10 dnsi xfr --format dig -p 15354 -s 127.0.0.1 ods &&
-log_grep dnsi stderr AXFR.*[Ff][Aa][Ii][Ll] &&
+log_this_timeout dnsi2 10 dnsi xfr --format dig -p 15354 -s 127.0.0.1 ods &&
+log_grep dnsi2 stdout 'rcode: SERVFAIL' &&
 
 ## Stop
 ods_stop_ods-control && 
