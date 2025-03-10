@@ -254,25 +254,30 @@ jobs:
 
       - name: Install and start the syslog daemon
         run: |
+          wget -qO - https://ose-repo.syslog-ng.com/apt/syslog-ng-ose-pub.asc | sudo apt-key add -
+          OS_CODENAME=$(lsb_release -c -s 2>/dev/null)
+          echo "deb https://ose-repo.syslog-ng.com/apt/ stable ubuntu-${OS_CODENAME}" | sudo tee -a /etc/apt/sources.list.d/syslog-ng-ose.list
+          sudo apt-get update
           sudo apt-get install \
             -y \
             --no-install-recommends \
             --no-install-suggests \
-            syslog-ng
+            syslog-ng-core \
+            syslog-ng-scl
   
           # Remove PIDs from syslog lines so that ODS test suite syslog line matching works.
           # See: https://serverfault.com/questions/981150/disable-process-id-showing-in-syslog-ng-logs
           sudo sed -i -e 's|file("/var/log/syslog")|file("/var/log/syslog" template("$DATE $HOST $PROGRAM: $MESSAGE\\n"))|' /etc/syslog-ng/syslog-ng.conf
 
           # Prevent filtering of debug logs to /var/log/syslog.
-          sudo sed -i -e 's|filter f_syslog3 { not facility(auth, authpriv, mail) and not filter(f_debug); };|filter f_syslog3 { not facility(auth, authpriv, mail) };|' /etc/syslog-ng/syslog-ng.conf
+          #sudo sed -i -e 's|filter f_syslog3 { not facility(auth, authpriv, mail) and not filter(f_debug); };|filter f_syslog3 { not facility(auth, authpriv, mail) };|' /etc/syslog-ng/syslog-ng.conf
+          sudo sed -i -e 's|log { source(s_src); filter(f_syslog3); destination(d_syslog); };|log { source(s_src); destination(d_syslog); };|' /etc/syslog-ng/syslog-ng.conf
   
           sudo syslog-ng
   
           sleep 1s
 
-          sudo syslog-ng-ctl verbose --set=on
-          sudo syslog-ng-ctl trace --set=on
+          sudo syslog-ng-ctl config
   
           sudo chmod a+rw /var/log/syslog
 
