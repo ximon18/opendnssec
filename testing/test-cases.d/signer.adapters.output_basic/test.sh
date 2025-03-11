@@ -43,6 +43,7 @@ log_grep axfr stdout below\.zonecut\.label4\.ods\..*600.*IN.*NS.*ns\.zonecut\.la
 
 ## See if we send overflow UDP if does not fit.
 ods-signer verbosity 8
+export RUST_BACKTRACE=1
 log_this_timeout ixfr 10 dnsi xfr --format dig -p 15354 -s 127.0.0.1 --udp --ixfr 1000 ods &&
 syslog_waitfor 10 'ods-signerd: .*\[axfr\] axfr fallback zone ods' &&
 syslog_waitfor 10 'ods-signerd: .*\[axfr\] axfr udp overflow zone ods' &&
