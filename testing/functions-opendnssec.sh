@@ -355,6 +355,10 @@ ods_setup_env ()
 		ods_stop_enforcer
 	fi &&
 	echo "ods_setup_env: setup env succeeded!" &&
+	if [ -n "$ODS_TEST_MIN_LOG_LEVEL" ]; then
+	    ods_enforcer_verbosity $ODS_TEST_MIN_LOG_LEVEL &&
+	    ods_signer_verbosity $ODS_TEST_MIN_LOG_LEVEL
+	fi &&
 	return 0
 
 	echo "ods_setup_env: setup failed!" >&2
@@ -1719,4 +1723,43 @@ END
 	fi
 	echo "comparing file '$1' to '$2'."
 	diff -rw "$1~" "$2~"
+}
+
+ods_enforcer_verbosity() {
+	if [ -z "$1" ]; then
+		echo "usage: ods_enforcer_verbosity <verbosity>" >&2
+		exit 1
+	fi
+	ods_set_verbosity enforcer $1
+}
+
+ods_signer_verbosity() {
+	if [ -z "$1" ]; then
+		echo "usage: ods_signer_verbosity <verbosity>" >&2
+		exit 1
+	fi
+	ods_set_verbosity signer $1
+}
+
+ods_set_verbosity() {
+	if [ -z "$1" -o -z "$2" ]; then
+		echo "usage: ods_set_verbosity signer|enforcer <verbosity>" >&2
+		exit 1
+	fi
+
+	local daemon="$1"
+	local verbosity="$2"
+
+	if [ -n "$ODS_TEST_MIN_LOG_LEVEL" ]; then
+		verbosity=$(( verbosity > ODS_TEST_MIN_LOG_LEVEL ? verbosity : ODS_TEST_MIN_LOG_LEVEL ))
+	fi
+
+	case $daemon in
+		enforcer)
+			ods-enforcer verbosity $verbosity
+			;;
+		signer)
+			ods-signer verbosity $verbosity
+			;;
+	esac
 }

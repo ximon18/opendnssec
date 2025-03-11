@@ -28,7 +28,7 @@ syslog_waitfor 300 'ods-signerd: .*\[STATS\] ods' &&
 ## Check signed zone file [when we decide on auditor tool]
 
 ## Stop master name server
-ods-signer verbosity 7 &&
+ods_signer_verbosity 7 &&
 ods_ldns_testns_kill &&
 
 ## See if we can transfer the signed zone

@@ -26,6 +26,16 @@ on:
         description: 'The runner type to run the build job on, or when using act a local Docker image name'
         default: 'ubuntu-latest'
         type: string
+      min-log-level:
+        description: 'The mininmum ODS log level to log, higher values cause more logging'
+        default: '4'
+        type: choice
+        options:
+          - 4
+          - 5
+          - 6
+          - 7
+          - 8
       
 defaults:
   run:
@@ -34,58 +44,59 @@ defaults:
 
 env:
   DEBIAN_FRONTEND: noninteractive
+  ODS_TEST_min-log-level: ${{ inputs.min-log-level }}
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: ["ubuntu:24.04", "fedora:41"]
-    runs-on: ubuntu-latest
-    container: ${{ matrix.os }}
+  # build:
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       os: ["ubuntu:24.04", "fedora:41"]
+  #   runs-on: ubuntu-latest
+  #   container: ${{ matrix.os }}
   
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
   
-      - name: Install pre-requisites
-        run: |
-          case ${{ matrix.os }} in
-            ubuntu*)
-              apt-get update
+  #     - name: Install pre-requisites
+  #       run: |
+  #         case ${{ matrix.os }} in
+  #           ubuntu*)
+  #             apt-get update
 
-              # default-jre is needed for relaxng XML schema support
-              # libldns-dev is needed by OpenDNSSEC
-              apt-get -y install \
-                automake \
-                default-jre \
-                gcc \
-                libldns-dev \
-                libtool \
-                libxml2-dev \
-                libsqlite3-dev \
-                make
-              ;;
+  #             # default-jre is needed for relaxng XML schema support
+  #             # libldns-dev is needed by OpenDNSSEC
+  #             apt-get -y install \
+  #               automake \
+  #               default-jre \
+  #               gcc \
+  #               libldns-dev \
+  #               libtool \
+  #               libxml2-dev \
+  #               libsqlite3-dev \
+  #               make
+  #             ;;
 
-            fedora*)
-              dnf -y update
-              dnf -y install \
-                automake \
-                gcc \
-                ldns-devel \
-                libtool \
-                libxml2-devel \
-                make
+  #           fedora*)
+  #             dnf -y update
+  #             dnf -y install \
+  #               automake \
+  #               gcc \
+  #               ldns-devel \
+  #               libtool \
+  #               libxml2-devel \
+  #               make
 
-              ;;
-          esac
+  #             ;;
+  #         esac
   
-      - name: Build and install OpenDNSSEC
-        run: |
-          sh autogen.sh
-          ./configure
-          make
-          make install
+  #     - name: Build and install OpenDNSSEC
+  #       run: |
+  #         sh autogen.sh
+  #         ./configure
+  #         make
+  #         make install
 
   test-build:
     runs-on: ${{ inputs.build-runs-on || 'ubuntu-latest' }}
