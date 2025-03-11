@@ -41,14 +41,22 @@ log_grep axfr stdout ods\..*600.*IN.*MX.*10.*mail\.ods\. &&
 ## Occluded names should be part of transfer
 log_grep axfr stdout below\.zonecut\.label4\.ods\..*600.*IN.*NS.*ns\.zonecut\.label4\.ods\. &&
 
-## See if we send overflow UDP if does not fit.
-ods-signer verbosity 8
-export RUST_BACKTRACE=1
-log_this_timeout ixfr 10 dnsi xfr --format dig -p 15354 -s 127.0.0.1 --udp --ixfr 1000 ods &&
+## See if we log UDP overflow if the response does not fit, and serve a single
+## SOA to indicate that the client should fallback to TCP, as defined in RFC
+## 1995:
+##   "If the UDP reply does not fit, the query is responded to with a single
+##    SOA record of the server's current version to inform the client that a
+##    TCP query should be initiated."
+## To see this SOA we must instruct dnsi NOT to try TCP otherwise it will
+## consume the single SOA response and we will never see it.
+log_this_timeout ixfr 10 dnsi xfr --format dig -p 15354 -s 127.0.0.1 --udp --notcp --ixfr 1000 ods &&
 syslog_waitfor 10 'ods-signerd: .*\[axfr\] axfr fallback zone ods' &&
 syslog_waitfor 10 'ods-signerd: .*\[axfr\] axfr udp overflow zone ods' &&
-log_grep ixfr stdout ods\..*IN.*\(TYPE251\|IXFR\) &&
+# Check for mention of IXFR (expected to be reported in the question section
+# of the dig-like semi-colon prefixed diagnostic comments).
+log_grep ixfr stdout ods\..*IXFR.*IN &&
 log_grep ixfr stdout ods\..*3600.*IN.*SOA.*ns1\.ods\..*postmaster\.ods\..*1001.*9000.*4500.*1209600.*3600 &&
+# The response should ONLY contain the SOA, not actual zone record data.
 ! (log_grep ixfr stdout ods\..*600.*IN.*MX.*10.*mail\.ods\.) &&
 
 ## See if we fallback to AXFR if IXFR not available.
