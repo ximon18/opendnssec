@@ -15,7 +15,7 @@ on:
         default: false
         type: boolean
       run-one-test:
-        description: 'Run only the named single test, e.g. test-cases.d/general.basic_start_stop'
+        description: 'Run only the named single test, e.g. test-cases.d/general.basic.start_stop'
         default: ''
         type: string
       build-runs-on:
