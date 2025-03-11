@@ -30,7 +30,7 @@ syslog_waitfor 60 'ods-signerd: .*\[STATS\] ods' &&
 syslog_waitfor 120 'ods-signerd: .*\[notify\] notify max retry for zone ods, 127\.0\.0\.1 unreachable' &&
 
 ## SOA query
-log_this_timeout soa 10 drill -p 15354 @127.0.0.1 soa ods &&
+log_this_timeout soa 10 dnsi query -p 15354 -s 127.0.0.1 ods soa &&
 log_grep soa stdout 'ods\..*3600.*IN.*SOA.*ns1\.ods\..*postmaster\.ods\..*1001.*9000.*4500.*1209600.*3600' &&
 
 ## See if we can transfer the signed zone
