@@ -246,7 +246,7 @@ jobs:
           sudo apt-get install -y build-essential curl libssl-dev pkg-config
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sudo sh -s -- -y --profile minimal --default-toolchain stable
           . "$HOME/.cargo/env"
-          cargo install --git https://github.com/NLnetLabs/dnsi --branch xfr
+          cargo install --git https://github.com/NLnetLabs/dnsi --branch xfr-with-udp
           cargo install --git https://github.com/NLnetLabs/dnst --branch ldns-testns
           P=$HOME/.cargo/bin/dnst
           [ -h /usr/bin/ldns-testns ] || sudo ln -s $P /usr/bin/ldns-testns
@@ -339,7 +339,7 @@ jobs:
             ./test-opendnssec.sh
           else
             cd ${{ matrix.test }}
-            sudo tshark -i any -d udp.port==15353,dns -d udp.port==15354,dns port 15353 or port 15354 &> _tshark.log &
+            sudo tshark -t ad -i any -d udp.port==15353,dns -d udp.port==15354,dns -d tcp.port==15353,dns -d tcp.port==15354,dns port 15353 or port 15354 &> _tshark.log &
             ../../test-this.sh || echo "test_result=FAILED" >> "${GITHUB_OUTPUT}"
           fi
 
