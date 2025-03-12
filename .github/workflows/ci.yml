@@ -26,8 +26,8 @@ on:
         description: 'The runner type to run the build job on, or when using act a local Docker image name'
         default: 'ubuntu-latest'
         type: string
-      min-log-level:
-        description: 'The mininmum ODS log level to log, higher values cause more logging'
+      min-verbosity:
+        description: 'The mininmum ODS verbosity to log at, higher values cause more logging'
         default: '4'
         type: choice
         options:
@@ -44,7 +44,7 @@ defaults:
 
 env:
   DEBIAN_FRONTEND: noninteractive
-  ODS_TEST_min-log-level: ${{ inputs.min-log-level }}
+  ODS_TEST_MIN_VERBOSITY: ${{ inputs.min-verbosity }}
 
 jobs:
   build:
