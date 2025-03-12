@@ -3,7 +3,6 @@
 # Command to run one test locally: act  -j test-build --input run-one-test=test-cases.d/signer.conf.notify_command workflow_dispatch
 # For timestamps pipe through 'ts', e.g.: act workflow_dispatch | ts
 # See also: .actrc
-# If the Upload Root TARBALL step fails try: docker run --rm -it -v ods-root:/tmp/root ubuntu:latest /bin/bash -c 'rm /tmp/root/.*'
 name: CI
 
 on:
